@@ -3,22 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能门禁控制中心</title>
+    <title>云端智能门禁控制中心</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; margin: 0; }
         .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 按钮呼吸灯效果 */
         @keyframes breath {
-            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.2); }
-            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.5); }
+            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.4); }
         }
         .active-glow { animation: breath 3s infinite; }
+
+        /* 玻璃拟态卡片 */
         .glass-card {
             background: rgba(255, 255, 255, 0.8);
             backdrop-filter: blur(12px);
@@ -34,16 +39,16 @@
         <div id="login-view" class="glass-card rounded-[2.5rem] p-10 shadow-2xl shadow-blue-100 fade-in">
             <div class="text-center mb-10">
                 <div class="inline-flex p-4 rounded-3xl bg-blue-600 text-white shadow-lg shadow-blue-200 mb-6">
-                    <i data-lucide="shield-check" class="w-10 h-10"></i>
+                    <i data-lucide="cloud-lightning" class="w-10 h-10"></i>
                 </div>
-                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">安全验证</h2>
-                <p class="text-slate-500 mt-2">请输入您的凭据以进入系统</p>
+                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">云端验证</h2>
+                <p class="text-slate-500 mt-2">登录后可同步所有设备的开门记录</p>
             </div>
             <form id="login-form" class="space-y-4">
-                <input type="text" id="login-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="用户名">
-                <input type="password" id="login-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="密码">
+                <input type="text" id="login-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="请输入姓名">
+                <input type="password" id="login-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="请输入访问密码">
                 <button type="submit" class="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 mt-4">
-                    登录系统
+                    进入系统
                 </button>
             </form>
         </div>
@@ -52,8 +57,8 @@
             <div class="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200">
                 <div class="px-8 py-6 flex justify-between items-center border-b border-slate-100/50">
                     <div>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">System Active</p>
-                        <h1 id="current-user" class="text-lg font-bold text-slate-800">Admin</h1>
+                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Remote Control</p>
+                        <h1 id="current-user" class="text-lg font-bold text-slate-800 italic">User</h1>
                     </div>
                     <div id="status-dot" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black tracking-wider uppercase text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span>
@@ -68,40 +73,51 @@
                             <div id="icon-bg" class="p-5 rounded-full bg-slate-50 text-slate-300 transition-colors duration-500">
                                 <i data-lucide="key-round" class="w-12 h-12"></i>
                             </div>
-                            <span class="text-xs font-black tracking-[0.3em] text-slate-400 uppercase">Open</span>
+                            <span class="text-xs font-black tracking-[0.3em] text-slate-400 uppercase">点击开门</span>
                         </button>
                     </div>
-                    <p id="status-msg" class="mt-8 text-sm font-medium text-slate-400">正在初始化安全连接...</p>
+                    <p id="status-msg" class="mt-8 text-sm font-medium text-slate-400 italic">正在同步云端链路...</p>
                 </div>
 
                 <div class="bg-slate-50/50 p-6 border-t border-slate-100">
                     <div class="flex items-center justify-between mb-4 px-2">
                         <span class="text-xs font-bold text-slate-500 flex items-center gap-2">
-                            <i data-lucide="list-checks" class="w-4 h-4"></i> 开门历史
+                            <i data-lucide="database" class="w-4 h-4 text-blue-500"></i> 云端实时记录
                         </span>
                         <div class="flex gap-4">
-                            <button onclick="clearLogs()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">清空记录</button>
+                            <button onclick="clearLogs()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">清空</button>
                             <button onclick="logout()" class="text-xs font-bold text-slate-400 hover:text-slate-800 transition-colors">退出</button>
                         </div>
                     </div>
-                    <div id="log-container" class="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar min-h-[100px]">
-                        </div>
+                    <div id="log-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar min-h-[120px]">
+                        <div class="text-center py-8 text-slate-300 text-xs">正在连接数据库...</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        const SUPER_ADMIN_CODE = "AHCLGCXX123456"; // 超级管理员清空密码
+        // ======= [配置区域：请填写您的信息] =======
+        const LC_ID = "Jyx8PbQRIOcVQebOYGybRSRY-gzGzoHsz";
+        const LC_KEY = "WnBolGTGBGuia4TkRB8y02JS";
+        const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com"; // 必须以 https:// 开头
+
+        const SUPER_ADMIN_CODE = "AHCLGCXX123456"; // 清空日志的超级密码
         const MQTT_BROKER = "ws://broker.emqx.io:8083/mqtt";
         const MQTT_TOPIC = "ahclgcxx/door/control";
+        // =======================================
+
+        // 初始化云端数据库
+        AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
+        const DoorLog = AV.Object.extend('DoorLog');
+
         let client = null;
         let currentUser = null;
 
         window.onload = () => {
             lucide.createIcons();
             checkAuth();
-            renderLogs();
         };
 
         function checkAuth() {
@@ -111,6 +127,7 @@
                 document.getElementById('current-user').textContent = user;
                 showView('dashboard-view');
                 initMqtt();
+                fetchLogs(); // 启动时拉取云端记录
             } else {
                 showView('login-view');
             }
@@ -131,115 +148,109 @@
 
         function logout() {
             localStorage.removeItem('door_user');
-            if(client) client.end();
             location.reload();
         }
 
         function initMqtt() {
-            const statusDot = document.getElementById('status-dot');
-            const openBtn = document.getElementById('open-btn');
-            const iconBg = document.getElementById('icon-bg');
-            const statusMsg = document.getElementById('status-msg');
-
-            client = mqtt.connect(MQTT_BROKER, {
-                clientId: 'web_' + Math.random().toString(16).slice(2, 8),
-                clean: true
-            });
+            client = mqtt.connect(MQTT_BROKER, { clientId: 'web_' + Math.random().toString(16).slice(2, 8) });
 
             client.on('connect', () => {
+                const statusDot = document.getElementById('status-dot');
                 statusDot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
                 statusDot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-[10px] font-black tracking-wider uppercase text-green-600";
-                openBtn.disabled = false;
-                iconBg.classList.replace('bg-slate-50', 'bg-blue-50');
-                iconBg.classList.replace('text-slate-300', 'text-blue-600');
-                statusMsg.textContent = "安全链路已建立，可以开门";
-                statusMsg.className = "mt-8 text-sm font-medium text-blue-500";
+                document.getElementById('open-btn').disabled = false;
+                document.getElementById('icon-bg').className = "p-5 rounded-full bg-blue-50 text-blue-600";
+                document.getElementById('status-msg').textContent = "云端同步成功，点击按钮开门";
+                document.getElementById('status-msg').className = "mt-8 text-sm font-medium text-blue-500 italic";
                 document.getElementById('button-ring').classList.add('active-glow');
-            });
-
-            client.on('offline', () => {
-                statusDot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
-                statusDot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black tracking-wider uppercase text-slate-400";
-                openBtn.disabled = true;
-                statusMsg.textContent = "连接已断开，请检查网络";
-                statusMsg.className = "mt-8 text-sm font-medium text-slate-400";
             });
         }
 
-        function openDoor() {
+        async function openDoor() {
             client.publish(MQTT_TOPIC, 'open');
 
-            // 按钮反馈动画
+            // UI 反馈
             const btn = document.getElementById('open-btn');
             btn.classList.add('scale-90');
             setTimeout(() => btn.classList.remove('scale-90'), 100);
 
-            Swal.fire({
-                title: '开门指令已下达',
-                icon: 'success',
-                toast: true,
-                position: 'top',
-                showConfirmButton: false,
-                timer: 1500
-            });
+            Swal.fire({ title: '已发送云端开门指令', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
 
-            saveLog(currentUser);
+            saveLogToCloud(currentUser);
         }
 
-        // --- 日志系统逻辑 ---
-
-        function saveLog(user) {
-            const logs = JSON.parse(localStorage.getItem('access_logs') || '[]');
+        // --- 云端核心逻辑：保存记录 ---
+        async function saveLogToCloud(user) {
+            const log = new DoorLog();
             const now = new Date();
-
-            // 格式化时间：XXXX年XX月XX日 XX:XX:XX
+            // 完整格式：2025年12月31日 12:00:00
             const timeStr = `${now.getFullYear()}年${(now.getMonth()+1).toString().padStart(2,'0')}月${now.getDate().toString().padStart(2,'0')}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
 
-            logs.unshift({ user, time: timeStr });
-            localStorage.setItem('access_logs', JSON.stringify(logs.slice(0, 50))); // 保留最近50条
-            renderLogs();
-        }
+            log.set('username', user);
+            log.set('actionTime', timeStr);
 
-        function renderLogs() {
-            const container = document.getElementById('log-container');
-            const logs = JSON.parse(localStorage.getItem('access_logs') || '[]');
-
-            if (logs.length === 0) {
-                container.innerHTML = `<div class="text-center py-8 text-slate-300 text-xs tracking-widest uppercase">暂无通行记录</div>`;
-                return;
+            try {
+                await log.save();
+                fetchLogs(); // 保存后刷新列表
+            } catch (error) {
+                console.error('云端存储失败', error);
+                Swal.fire('存储失败', '请检查 LeanCloud 服务器地址配置', 'error');
             }
-
-            container.innerHTML = logs.map(log => `
-                <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1 fade-in">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-extrabold text-slate-800">${log.user}</span>
-                        <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter">通行成功</span>
-                    </div>
-                    <span class="text-[10px] font-medium text-slate-400 tracking-tight">${log.time}</span>
-                </div>
-            `).join('');
         }
 
+        // --- 云端核心逻辑：拉取记录 ---
+        async function fetchLogs() {
+            const query = new AV.Query('DoorLog');
+            query.descending('createdAt'); // 按时间倒序
+            query.limit(20); // 仅拉取最近20条
+
+            try {
+                const results = await query.find();
+                const container = document.getElementById('log-container');
+
+                if (results.length === 0) {
+                    container.innerHTML = `<div class="text-center py-8 text-slate-300 text-xs uppercase tracking-widest">暂无通行历史</div>`;
+                    return;
+                }
+
+                container.innerHTML = results.map(item => `
+                    <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1 fade-in">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-extrabold text-slate-800">${item.get('username')}</span>
+                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter italic">Verified</span>
+                        </div>
+                        <span class="text-[10px] font-medium text-slate-400 tracking-tight">${item.get('actionTime')}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('云端获取失败', error);
+            }
+        }
+
+        // --- 管理员操作：清空云端 ---
         async function clearLogs() {
             const { value: password } = await Swal.fire({
-                title: '需要管理员权限',
+                title: '管理员安全验证',
                 input: 'password',
-                inputLabel: '请输入超级管理员授权码以清空所有日志',
-                inputPlaceholder: '授权码',
+                inputLabel: '请输入超级管理员授权码以清空所有云端记录',
                 showCancelButton: true,
-                confirmButtonText: '验证并清空',
-                cancelButtonText: '取消',
                 confirmButtonColor: '#ef4444'
             });
 
-            if (password) {
-                if (password === SUPER_ADMIN_CODE) {
-                    localStorage.removeItem('access_logs');
-                    renderLogs();
-                    Swal.fire('已清空', '所有访问记录已从本地移除', 'success');
-                } else {
-                    Swal.fire('验证失败', '授权码不正确，操作已被拒绝', 'error');
+            if (password === SUPER_ADMIN_CODE) {
+                Swal.fire({ title: '正在清空云端数据库...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+                const query = new AV.Query('DoorLog');
+                try {
+                    const results = await query.find();
+                    await AV.Object.destroyAll(results);
+                    fetchLogs();
+                    Swal.fire('已完成', '云端数据已全部清除', 'success');
+                } catch (e) {
+                    Swal.fire('错误', '删除失败', 'error');
                 }
+            } else if (password) {
+                Swal.fire('授权码错误', '操作已取消', 'error');
             }
         }
     </script>
