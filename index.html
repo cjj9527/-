@@ -36,20 +36,48 @@
 <body class="min-h-screen flex items-center justify-center p-4 bg-slate-50">
 
     <div id="app" class="w-full max-w-md">
+
         <div id="login-view" class="glass-card rounded-[2.5rem] p-10 shadow-2xl shadow-blue-100 fade-in">
             <div class="text-center mb-10">
                 <div class="inline-flex p-4 rounded-3xl bg-blue-600 text-white shadow-lg shadow-blue-200 mb-6">
                     <i data-lucide="cloud-lightning" class="w-10 h-10"></i>
                 </div>
-                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">云端验证</h2>
-                <p class="text-slate-500 mt-2">登录后可同步所有设备的开门记录</p>
+                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">安全登录</h2>
+                <p class="text-slate-500 mt-2 text-sm text-red-400">请输入您的云端账号</p>
             </div>
             <form id="login-form" class="space-y-4">
-                <input type="text" id="login-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="请输入姓名">
-                <input type="password" id="login-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="请输入访问密码">
+                <input type="text" id="l-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="账号">
+                <input type="password" id="l-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="密码">
                 <button type="submit" class="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 mt-4">
                     进入系统
                 </button>
+                <div class="text-center mt-4">
+                    <button type="button" onclick="toggleAuth(true)" class="text-xs text-blue-500 font-bold hover:underline">没有账号？立即注册</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="register-view" class="glass-card rounded-[2.5rem] p-10 shadow-2xl shadow-indigo-100 fade-in hidden">
+            <div class="text-center mb-10">
+                <div class="inline-flex p-4 rounded-3xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 mb-6">
+                    <i data-lucide="user-plus" class="w-10 h-10"></i>
+                </div>
+                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">新用户注册</h2>
+                <p class="text-slate-500 mt-2 text-xs">注册需持有超级管理员授权钥匙</p>
+            </div>
+            <form id="register-form" class="space-y-4">
+                <input type="text" id="r-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="设置账号">
+                <input type="password" id="r-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="设置密码">
+                <div class="relative">
+                    <input type="password" id="r-admin-code" required class="w-full px-6 py-4 bg-orange-50 border border-orange-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="超级管理员授权钥匙">
+                    <i data-lucide="key" class="w-4 h-4 absolute right-5 top-5 text-orange-400"></i>
+                </div>
+                <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-200 mt-4">
+                    完成注册
+                </button>
+                <div class="text-center mt-4">
+                    <button type="button" onclick="toggleAuth(false)" class="text-xs text-slate-500 font-bold hover:underline">返回登录</button>
+                </div>
             </form>
         </div>
 
@@ -90,7 +118,7 @@
                         </div>
                     </div>
                     <div id="log-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar min-h-[120px]">
-                        <div class="text-center py-8 text-slate-300 text-xs">正在连接数据库...</div>
+                        <div class="text-center py-8 text-slate-300 text-xs">正在拉取同步历史...</div>
                     </div>
                 </div>
             </div>
@@ -98,159 +126,167 @@
     </div>
 
     <script>
-        // ======= [配置区域：请填写您的信息] =======
+        // ======= [配置区域：使用您提供的信息] =======
         const LC_ID = "Jyx8PbQRIOcVQebOYGybRSRY-gzGzoHsz";
         const LC_KEY = "WnBolGTGBGuia4TkRB8y02JS";
-        const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com"; // 必须以 https:// 开头
+        const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com";
 
-        const SUPER_ADMIN_CODE = "AHCLGCXX123456"; // 清空日志的超级密码
+        const SUPER_ADMIN_CODE = "AHCLGCXX123456"; // 注册与清空的通用授权钥匙
         const MQTT_BROKER = "ws://broker.emqx.io:8083/mqtt";
         const MQTT_TOPIC = "ahclgcxx/door/control";
         // =======================================
 
-        // 初始化云端数据库
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
 
         let client = null;
-        let currentUser = null;
 
         window.onload = () => {
             lucide.createIcons();
             checkAuth();
         };
 
+        // 切换登录/注册
+        function toggleAuth(isReg) {
+            document.getElementById('login-view').classList.toggle('hidden', isReg);
+            document.getElementById('register-view').classList.toggle('hidden', !isReg);
+        }
+
+        // 检查登录状态
         function checkAuth() {
-            const user = localStorage.getItem('door_user');
+            const user = AV.User.current();
             if (user) {
-                currentUser = user;
-                document.getElementById('current-user').textContent = user;
+                document.getElementById('current-user').textContent = user.getUsername();
                 showView('dashboard-view');
                 initMqtt();
-                fetchLogs(); // 启动时拉取云端记录
+                fetchLogs();
             } else {
                 showView('login-view');
             }
         }
 
+        // 注册处理
+        document.getElementById('register-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('r-username').value;
+            const p = document.getElementById('r-password').value;
+            const code = document.getElementById('r-admin-code').value;
+
+            if (code !== SUPER_ADMIN_CODE) {
+                return Swal.fire('授权失败', '授权钥匙错误，无法完成注册', 'error');
+            }
+
+            const user = new AV.User();
+            user.setUsername(u);
+            user.setPassword(p);
+
+            try {
+                await user.signUp();
+                Swal.fire('注册成功', '现在可以去登录了', 'success');
+                toggleAuth(false);
+            } catch (err) {
+                Swal.fire('注册失败', err.message, 'error');
+            }
+        };
+
+        // 登录处理
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('l-username').value;
+            const p = document.getElementById('l-password').value;
+
+            try {
+                await AV.User.logIn(u, p);
+                checkAuth();
+            } catch (err) {
+                Swal.fire('登录失败', '用户名或密码不匹配', 'error');
+            }
+        };
+
         function showView(id) {
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('dashboard-view').classList.add('hidden');
+            ['login-view', 'register-view', 'dashboard-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
-        document.getElementById('login-form').onsubmit = (e) => {
-            e.preventDefault();
-            const user = document.getElementById('login-username').value;
-            localStorage.setItem('door_user', user);
-            checkAuth();
-        };
-
         function logout() {
-            localStorage.removeItem('door_user');
+            AV.User.logOut();
             location.reload();
         }
 
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER, { clientId: 'web_' + Math.random().toString(16).slice(2, 8) });
-
             client.on('connect', () => {
                 const statusDot = document.getElementById('status-dot');
-                statusDot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
-                statusDot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-[10px] font-black tracking-wider uppercase text-green-600";
+                statusDot.innerHTML = '● ONLINE';
+                statusDot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-[10px] font-black text-green-600";
                 document.getElementById('open-btn').disabled = false;
                 document.getElementById('icon-bg').className = "p-5 rounded-full bg-blue-50 text-blue-600";
-                document.getElementById('status-msg').textContent = "云端同步成功，点击按钮开门";
-                document.getElementById('status-msg').className = "mt-8 text-sm font-medium text-blue-500 italic";
+                document.getElementById('status-msg').textContent = "云端同步已就绪";
                 document.getElementById('button-ring').classList.add('active-glow');
             });
         }
 
         async function openDoor() {
             client.publish(MQTT_TOPIC, 'open');
-
-            // UI 反馈
             const btn = document.getElementById('open-btn');
             btn.classList.add('scale-90');
             setTimeout(() => btn.classList.remove('scale-90'), 100);
 
-            Swal.fire({ title: '已发送云端开门指令', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
-
-            saveLogToCloud(currentUser);
+            saveLogToCloud(AV.User.current().getUsername());
+            Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
         }
 
-        // --- 云端核心逻辑：保存记录 ---
         async function saveLogToCloud(user) {
             const log = new DoorLog();
             const now = new Date();
-            // 完整格式：2025年12月31日 12:00:00
             const timeStr = `${now.getFullYear()}年${(now.getMonth()+1).toString().padStart(2,'0')}月${now.getDate().toString().padStart(2,'0')}日 ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
 
             log.set('username', user);
             log.set('actionTime', timeStr);
-
             try {
                 await log.save();
-                fetchLogs(); // 保存后刷新列表
-            } catch (error) {
-                console.error('云端存储失败', error);
-                Swal.fire('存储失败', '请检查 LeanCloud 服务器地址配置', 'error');
-            }
+                fetchLogs();
+            } catch (e) { console.error(e); }
         }
 
-        // --- 云端核心逻辑：拉取记录 ---
         async function fetchLogs() {
             const query = new AV.Query('DoorLog');
-            query.descending('createdAt'); // 按时间倒序
-            query.limit(20); // 仅拉取最近20条
-
+            query.descending('createdAt').limit(20);
             try {
                 const results = await query.find();
                 const container = document.getElementById('log-container');
-
                 if (results.length === 0) {
                     container.innerHTML = `<div class="text-center py-8 text-slate-300 text-xs uppercase tracking-widest">暂无通行历史</div>`;
                     return;
                 }
-
                 container.innerHTML = results.map(item => `
                     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1 fade-in">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-extrabold text-slate-800">${item.get('username')}</span>
-                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter italic">Verified</span>
+                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter italic italic">Cloud Sync</span>
                         </div>
                         <span class="text-[10px] font-medium text-slate-400 tracking-tight">${item.get('actionTime')}</span>
                     </div>
                 `).join('');
-            } catch (error) {
-                console.error('云端获取失败', error);
-            }
+            } catch (e) { console.error(e); }
         }
 
-        // --- 管理员操作：清空云端 ---
         async function clearLogs() {
             const { value: password } = await Swal.fire({
-                title: '管理员安全验证',
+                title: '管理员验证',
                 input: 'password',
-                inputLabel: '请输入超级管理员授权码以清空所有云端记录',
-                showCancelButton: true,
-                confirmButtonColor: '#ef4444'
+                inputLabel: '请输入超级授权钥匙清空记录',
+                showCancelButton: true
             });
 
             if (password === SUPER_ADMIN_CODE) {
-                Swal.fire({ title: '正在清空云端数据库...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-                const query = new AV.Query('DoorLog');
-                try {
-                    const results = await query.find();
-                    await AV.Object.destroyAll(results);
-                    fetchLogs();
-                    Swal.fire('已完成', '云端数据已全部清除', 'success');
-                } catch (e) {
-                    Swal.fire('错误', '删除失败', 'error');
-                }
-            } else if (password) {
-                Swal.fire('授权码错误', '操作已取消', 'error');
+                Swal.showLoading();
+                const results = await new AV.Query('DoorLog').find();
+                await AV.Object.destroyAll(results);
+                fetchLogs();
+                Swal.fire('已清空', '云端数据已重置', 'success');
+            } else if(password) {
+                Swal.fire('验证失败', '钥匙不正确', 'error');
             }
         }
     </script>
