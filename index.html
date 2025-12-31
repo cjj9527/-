@@ -13,22 +13,11 @@
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
         body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; margin: 0; }
         .hidden { display: none !important; }
-        .fade-in { animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* 按钮呼吸灯效果 */
-        @keyframes breath {
-            0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); }
-            50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.4); }
-        }
+        @keyframes breath { 0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); } 50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.4); } }
         .active-glow { animation: breath 3s infinite; }
-
-        /* 玻璃拟态卡片 */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-        }
+        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
@@ -40,19 +29,19 @@
         <div id="login-view" class="glass-card rounded-[2.5rem] p-10 shadow-2xl shadow-blue-100 fade-in">
             <div class="text-center mb-10">
                 <div class="inline-flex p-4 rounded-3xl bg-blue-600 text-white shadow-lg shadow-blue-200 mb-6">
-                    <i data-lucide="cloud-lightning" class="w-10 h-10"></i>
+                    <i data-lucide="shield-check" class="w-10 h-10"></i>
                 </div>
                 <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">安全登录</h2>
-                <p class="text-slate-500 mt-2 text-sm text-red-400">请输入您的云端账号</p>
+                <p class="text-slate-500 mt-2 text-sm italic">验证您的身份以进入系统</p>
             </div>
             <form id="login-form" class="space-y-4">
                 <input type="text" id="l-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="账号">
                 <input type="password" id="l-password" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all" placeholder="密码">
-                <button type="submit" class="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 mt-4">
-                    进入系统
+                <button type="submit" id="l-btn" class="w-full py-4 bg-blue-600 text-white font-bold rounded-2xl hover:bg-blue-700 active:scale-[0.98] transition-all shadow-xl shadow-blue-200 mt-4">
+                    登录系统
                 </button>
                 <div class="text-center mt-4">
-                    <button type="button" onclick="toggleAuth(true)" class="text-xs text-blue-500 font-bold hover:underline">没有账号？立即注册</button>
+                    <button type="button" onclick="toggleAuth(true)" class="text-xs text-blue-500 font-bold hover:underline">没有账号？申请注册</button>
                 </div>
             </form>
         </div>
@@ -62,8 +51,8 @@
                 <div class="inline-flex p-4 rounded-3xl bg-indigo-600 text-white shadow-lg shadow-indigo-200 mb-6">
                     <i data-lucide="user-plus" class="w-10 h-10"></i>
                 </div>
-                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">新用户注册</h2>
-                <p class="text-slate-500 mt-2 text-xs">注册需持有超级管理员授权钥匙</p>
+                <h2 class="text-3xl font-extrabold text-slate-900 tracking-tight">新成员注册</h2>
+                <p class="text-slate-500 mt-2 text-xs">需持超级管理员授权钥匙进行操作</p>
             </div>
             <form id="register-form" class="space-y-4">
                 <input type="text" id="r-username" required class="w-full px-6 py-4 bg-white border border-slate-100 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all" placeholder="设置账号">
@@ -72,11 +61,11 @@
                     <input type="password" id="r-admin-code" required class="w-full px-6 py-4 bg-orange-50 border border-orange-100 rounded-2xl focus:ring-2 focus:ring-orange-500 outline-none transition-all" placeholder="超级管理员授权钥匙">
                     <i data-lucide="key" class="w-4 h-4 absolute right-5 top-5 text-orange-400"></i>
                 </div>
-                <button type="submit" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-200 mt-4">
-                    完成注册
+                <button type="submit" id="r-btn" class="w-full py-4 bg-indigo-600 text-white font-bold rounded-2xl hover:bg-indigo-700 active:scale-[0.98] transition-all shadow-xl shadow-indigo-200 mt-4">
+                    完成授权并注册
                 </button>
                 <div class="text-center mt-4">
-                    <button type="button" onclick="toggleAuth(false)" class="text-xs text-slate-500 font-bold hover:underline">返回登录</button>
+                    <button type="button" onclick="toggleAuth(false)" class="text-xs text-slate-500 font-bold hover:underline">已有账号？立即返回</button>
                 </div>
             </form>
         </div>
@@ -85,7 +74,7 @@
             <div class="glass-card rounded-[2.5rem] overflow-hidden shadow-2xl shadow-slate-200">
                 <div class="px-8 py-6 flex justify-between items-center border-b border-slate-100/50">
                     <div>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Remote Control</p>
+                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-[0.2em]">Security Active</p>
                         <h1 id="current-user" class="text-lg font-bold text-slate-800 italic">User</h1>
                     </div>
                     <div id="status-dot" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black tracking-wider uppercase text-slate-400">
@@ -104,13 +93,13 @@
                             <span class="text-xs font-black tracking-[0.3em] text-slate-400 uppercase">点击开门</span>
                         </button>
                     </div>
-                    <p id="status-msg" class="mt-8 text-sm font-medium text-slate-400 italic">正在同步云端链路...</p>
+                    <p id="status-msg" class="mt-8 text-sm font-medium text-slate-400 italic">正在校验云端凭证...</p>
                 </div>
 
                 <div class="bg-slate-50/50 p-6 border-t border-slate-100">
                     <div class="flex items-center justify-between mb-4 px-2">
                         <span class="text-xs font-bold text-slate-500 flex items-center gap-2">
-                            <i data-lucide="database" class="w-4 h-4 text-blue-500"></i> 云端实时记录
+                            <i data-lucide="cloud" class="w-4 h-4 text-blue-500"></i> 云端同步记录
                         </span>
                         <div class="flex gap-4">
                             <button onclick="clearLogs()" class="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors">清空</button>
@@ -118,7 +107,7 @@
                         </div>
                     </div>
                     <div id="log-container" class="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar min-h-[120px]">
-                        <div class="text-center py-8 text-slate-300 text-xs">正在拉取同步历史...</div>
+                        <div class="text-center py-8 text-slate-300 text-xs">同步中...</div>
                     </div>
                 </div>
             </div>
@@ -126,19 +115,16 @@
     </div>
 
     <script>
-        // ======= [配置区域：使用您提供的信息] =======
         const LC_ID = "Jyx8PbQRIOcVQebOYGybRSRY-gzGzoHsz";
         const LC_KEY = "WnBolGTGBGuia4TkRB8y02JS";
         const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com";
 
-        const SUPER_ADMIN_CODE = "AHCLGCXX123456"; // 注册与清空的通用授权钥匙
+        const SUPER_ADMIN_CODE = "AHCLGCXX123456";
         const MQTT_BROKER = "ws://broker.emqx.io:8083/mqtt";
         const MQTT_TOPIC = "ahclgcxx/door/control";
-        // =======================================
 
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
-
         let client = null;
 
         window.onload = () => {
@@ -146,35 +132,58 @@
             checkAuth();
         };
 
-        // 切换登录/注册
         function toggleAuth(isReg) {
             document.getElementById('login-view').classList.toggle('hidden', isReg);
             document.getElementById('register-view').classList.toggle('hidden', !isReg);
         }
 
-        // 检查登录状态
-        function checkAuth() {
-            const user = AV.User.current();
-            if (user) {
-                document.getElementById('current-user').textContent = user.getUsername();
-                showView('dashboard-view');
-                initMqtt();
-                fetchLogs();
-            } else {
-                showView('login-view');
+        // 核心修正：优化登录校验逻辑
+        document.getElementById('login-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('l-username').value.trim();
+            const p = document.getElementById('l-password').value.trim();
+            const lBtn = document.getElementById('l-btn');
+
+            // 防止空输入
+            if(!u || !p) return;
+
+            // UI 锁定状态
+            lBtn.disabled = true;
+            lBtn.innerText = "正在验证...";
+
+            try {
+                // 执行 LeanCloud 官方登录方法
+                await AV.User.logIn(u, p);
+
+                // 登录成功后直接执行 UI 更新，不再弹窗干预以防视觉延迟
+                checkAuth();
+            } catch (err) {
+                // 仅在真实捕获错误时弹窗
+                Swal.fire({
+                    title: '登录失败',
+                    text: '账号或密码不正确',
+                    icon: 'error',
+                    confirmButtonColor: '#3b82f6'
+                });
+                lBtn.disabled = false;
+                lBtn.innerText = "登录系统";
             }
-        }
+        };
 
         // 注册处理
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
-            const u = document.getElementById('r-username').value;
-            const p = document.getElementById('r-password').value;
-            const code = document.getElementById('r-admin-code').value;
+            const u = document.getElementById('r-username').value.trim();
+            const p = document.getElementById('r-password').value.trim();
+            const code = document.getElementById('r-admin-code').value.trim();
+            const rBtn = document.getElementById('r-btn');
 
             if (code !== SUPER_ADMIN_CODE) {
-                return Swal.fire('授权失败', '授权钥匙错误，无法完成注册', 'error');
+                return Swal.fire('权限不足', '授权钥匙错误', 'error');
             }
+
+            rBtn.disabled = true;
+            rBtn.innerText = "正在同步云端...";
 
             const user = new AV.User();
             user.setUsername(u);
@@ -182,26 +191,27 @@
 
             try {
                 await user.signUp();
-                Swal.fire('注册成功', '现在可以去登录了', 'success');
+                Swal.fire('注册成功', '请使用新账号登录', 'success');
                 toggleAuth(false);
             } catch (err) {
                 Swal.fire('注册失败', err.message, 'error');
+            } finally {
+                rBtn.disabled = false;
+                rBtn.innerText = "完成授权并注册";
             }
         };
 
-        // 登录处理
-        document.getElementById('login-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('l-username').value;
-            const p = document.getElementById('l-password').value;
-
-            try {
-                await AV.User.logIn(u, p);
-                checkAuth();
-            } catch (err) {
-                Swal.fire('登录失败', '用户名或密码不匹配', 'error');
+        function checkAuth() {
+            const user = AV.User.current();
+            if (user) {
+                document.getElementById('current-user').textContent = user.getUsername();
+                showView('dashboard-view');
+                if(!client) initMqtt();
+                fetchLogs();
+            } else {
+                showView('login-view');
             }
-        };
+        }
 
         function showView(id) {
             ['login-view', 'register-view', 'dashboard-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
@@ -210,30 +220,32 @@
 
         function logout() {
             AV.User.logOut();
+            if(client) client.end();
             location.reload();
         }
 
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER, { clientId: 'web_' + Math.random().toString(16).slice(2, 8) });
             client.on('connect', () => {
-                const statusDot = document.getElementById('status-dot');
-                statusDot.innerHTML = '● ONLINE';
-                statusDot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-[10px] font-black text-green-600";
+                document.getElementById('status-dot').innerHTML = '● ONLINE';
+                document.getElementById('status-dot').className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-50 text-[10px] font-black text-green-600";
                 document.getElementById('open-btn').disabled = false;
                 document.getElementById('icon-bg').className = "p-5 rounded-full bg-blue-50 text-blue-600";
-                document.getElementById('status-msg').textContent = "云端同步已就绪";
+                document.getElementById('status-msg').textContent = "安全链路已连接";
                 document.getElementById('button-ring').classList.add('active-glow');
             });
         }
 
         async function openDoor() {
+            if(!client || !client.connected) return Swal.fire('连接中断', '请刷新网页重试', 'warning');
+
             client.publish(MQTT_TOPIC, 'open');
             const btn = document.getElementById('open-btn');
             btn.classList.add('scale-90');
             setTimeout(() => btn.classList.remove('scale-90'), 100);
 
             saveLogToCloud(AV.User.current().getUsername());
-            Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
+            Swal.fire({ title: '指令已发送', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
         }
 
         async function saveLogToCloud(user) {
@@ -256,16 +268,16 @@
                 const results = await query.find();
                 const container = document.getElementById('log-container');
                 if (results.length === 0) {
-                    container.innerHTML = `<div class="text-center py-8 text-slate-300 text-xs uppercase tracking-widest">暂无通行历史</div>`;
+                    container.innerHTML = `<div class="text-center py-8 text-slate-300 text-xs">暂无历史记录</div>`;
                     return;
                 }
                 container.innerHTML = results.map(item => `
                     <div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col gap-1 fade-in">
                         <div class="flex items-center justify-between">
                             <span class="text-xs font-extrabold text-slate-800">${item.get('username')}</span>
-                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-tighter italic italic">Cloud Sync</span>
+                            <span class="text-[9px] font-black text-blue-500 uppercase italic">Verified</span>
                         </div>
-                        <span class="text-[10px] font-medium text-slate-400 tracking-tight">${item.get('actionTime')}</span>
+                        <span class="text-[10px] font-medium text-slate-400">${item.get('actionTime')}</span>
                     </div>
                 `).join('');
             } catch (e) { console.error(e); }
@@ -275,18 +287,18 @@
             const { value: password } = await Swal.fire({
                 title: '管理员验证',
                 input: 'password',
-                inputLabel: '请输入超级授权钥匙清空记录',
+                inputLabel: '请输入授权钥匙以清空',
                 showCancelButton: true
             });
 
             if (password === SUPER_ADMIN_CODE) {
-                Swal.showLoading();
+                Swal.fire({ title: '清理中...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
                 const results = await new AV.Query('DoorLog').find();
                 await AV.Object.destroyAll(results);
                 fetchLogs();
-                Swal.fire('已清空', '云端数据已重置', 'success');
+                Swal.fire('已清空', '记录已从云端移除', 'success');
             } else if(password) {
-                Swal.fire('验证失败', '钥匙不正确', 'error');
+                Swal.fire('钥匙错误', '操作被拒', 'error');
             }
         }
     </script>
