@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云端门禁系统 Pro Max</title>
+    <title>云端门禁 Pro Max</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -31,19 +31,19 @@
             <form id="login-form" class="space-y-4">
                 <input type="text" id="l-username" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="账号">
                 <input type="password" id="l-password" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="密码">
-                <button type="submit" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">进入系统</button>
+                <button type="submit" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">登录系统</button>
                 <button type="button" onclick="showView('register-view')" class="w-full text-xs text-blue-500 font-bold mt-2">注册新账号</button>
             </form>
         </div>
 
         <div id="register-view" class="glass-card rounded-[2.5rem] p-8 shadow-2xl fade-in hidden">
-            <h2 class="text-2xl font-black text-center mb-6">用户注册</h2>
+            <h2 class="text-2xl font-black text-center mb-6">新用户注册</h2>
             <form id="register-form" class="space-y-4">
                 <input type="text" id="r-username" required class="w-full px-5 py-3 border rounded-xl" placeholder="用户名">
-                <input type="password" id="r-password" required class="w-full px-5 py-3 border rounded-xl" placeholder="设置密码">
+                <input type="password" id="r-password" required class="w-full px-5 py-3 border rounded-xl" placeholder="密码">
                 <input type="password" id="r-admin-code" required class="w-full px-5 py-3 border border-orange-200 rounded-xl" placeholder="管理员授权码">
-                <button type="submit" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl">完成注册</button>
-                <button type="button" onclick="showView('login-view')" class="w-full text-xs mt-2">返回登录</button>
+                <button type="submit" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl">注册</button>
+                <button type="button" onclick="showView('login-view')" class="w-full text-xs mt-2">返回</button>
             </form>
         </div>
 
@@ -61,27 +61,24 @@
                         <span class="text-[10px] font-black uppercase text-slate-400 mt-2">OPEN</span>
                         <div id="button-ring" class="absolute -inset-2 rounded-full border-2 border-blue-100 opacity-0 transition-all"></div>
                     </button>
-                    <p id="status-msg" class="mt-4 text-xs font-bold text-slate-400 italic">正在检测硬件...</p>
+                    <p id="status-msg" class="mt-4 text-xs font-bold text-slate-400 italic">检测中...</p>
                 </div>
             </div>
 
             <div class="glass-card rounded-[2rem] p-5 shadow-lg h-52">
                 <div class="flex items-center gap-2 mb-2">
                     <i data-lucide="bar-chart-2" class="w-4 h-4 text-blue-500"></i>
-                    <span class="text-[10px] font-black text-slate-500 uppercase">开门频次分析</span>
+                    <span class="text-[10px] font-black text-slate-500 uppercase">统计分析</span>
                 </div>
                 <div class="h-36 w-full"><canvas id="usageChart"></canvas></div>
             </div>
 
             <div class="glass-card rounded-[2rem] p-5 shadow-lg">
                 <div class="flex justify-between items-center mb-4">
-                    <div class="flex items-center gap-2">
-                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i>
-                        <span class="text-[10px] font-black text-slate-500 uppercase">操作审计</span>
-                    </div>
+                    <span class="text-[10px] font-black text-slate-500 uppercase">通行记录</span>
                     <div class="flex gap-3 text-[10px] font-bold">
-                        <button onclick="clearLogs()" class="text-red-400 hover:text-red-600">清空记录</button>
-                        <button onclick="logout()" class="text-slate-400 hover:text-slate-600">退出</button>
+                        <button onclick="clearLogs()" class="text-red-400">清空记录</button>
+                        <button onclick="logout()" class="text-slate-400">退出</button>
                     </div>
                 </div>
                 <div id="log-container" class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-1"></div>
@@ -122,12 +119,13 @@
             client = mqtt.connect(MQTT_BROKER);
             client.on('connect', () => {
                 client.subscribe(MQTT_TOPIC_BASE + '/status');
+                // 连接时清理一次保留消息
                 client.publish(MQTT_TOPIC_BASE + '/control', '', { retain: true });
             });
             client.on('message', (topic, message) => {
                 if (topic === MQTT_TOPIC_BASE + '/status') {
                     const status = message.toString();
-                    updateStatus(status === 'online', status === 'online' ? "设备已就绪" : "设备已离线");
+                    updateStatus(status === 'online', status === 'online' ? "设备在线" : "设备离线");
                 }
             });
         }
@@ -156,7 +154,7 @@
         async function openDoor() {
             if (!deviceOnline) return;
             client.publish(MQTT_TOPIC_BASE + '/control', 'open', { retain: false });
-            Swal.fire({ title: '已发送', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
+            Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
             const log = new DoorLog();
             log.set('username', AV.User.current().getUsername());
             log.set('actionTime', new Date().toLocaleTimeString());
@@ -166,7 +164,7 @@
 
         async function fetchLogs() {
             const q = new AV.Query('DoorLog');
-            q.descending('createdAt').limit(30);
+            q.descending('createdAt').limit(20);
             const results = await q.find();
             document.getElementById('log-container').innerHTML = results.map(i => `
                 <div class="bg-white p-2 rounded-lg border border-slate-50 flex justify-between items-center">
@@ -187,12 +185,12 @@
                 data: {
                     labels: Object.keys(counts),
                     datasets: [{
-                        label: '次数',
+                        label: '开门次数',
                         data: Object.values(counts),
                         backgroundColor: '#3b82f6',
-                        borderRadius: 20, // 圆角增加
-                        barThickness: 12, // 这里调细了！
-                        maxBarThickness: 15
+                        borderRadius: 10,
+                        barThickness: 8, // 【关键】设为 8 像素，极其纤细
+                        maxBarThickness: 10
                     }]
                 },
                 options: {
