@@ -61,18 +61,13 @@
             <div class="text-center mb-8">
                 <div class="inline-flex p-4 rounded-3xl bg-orange-500 text-white shadow-lg mb-4"><i data-lucide="lock-keyhole" class="w-8 h-8"></i></div>
                 <h2 class="text-2xl font-extrabold text-slate-900">修改密码</h2>
-                <p class="text-xs text-slate-400 mt-2">忘记旧密码请联系管理员重置</p>
+                <p class="text-xs text-slate-400 mt-2">修改后需重新登录</p>
             </div>
             <form id="password-form" class="space-y-4">
                 <input type="text" id="p-username" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="账号">
                 <input type="password" id="p-old-pass" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="旧密码">
                 <input type="password" id="p-new-pass" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-orange-500" placeholder="新密码">
                 <button type="submit" class="w-full py-3.5 bg-orange-500 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform">确认修改</button>
-
-                <div class="border-t border-slate-100 pt-4 mt-4">
-                    <p class="text-xs text-center text-slate-400 mb-2">忘记旧密码？</p>
-                    <button type="button" onclick="adminResetTip()" class="w-full py-2 bg-slate-100 text-slate-500 text-xs font-bold rounded-lg hover:bg-slate-200">使用管理员权限重置</button>
-                </div>
                 <button type="button" onclick="showView('login-view')" class="w-full text-xs text-slate-500 font-bold mt-2">返回登录</button>
             </form>
         </div>
@@ -134,7 +129,7 @@
         const DoorLog = AV.Object.extend('DoorLog');
         let client = null;
         let myChart = null;
-        let deviceOnline = false; // 全局变量，记录设备真实状态
+        let deviceOnline = false;
 
         window.onload = () => { lucide.createIcons(); checkAuth(); };
 
@@ -147,7 +142,7 @@
             e.preventDefault();
             const u = document.getElementById('l-username').value.trim();
             const p = document.getElementById('l-password').value.trim();
-            try { await AV.User.logIn(u, p); checkAuth(); } catch (err) { Swal.fire('错误', '账号或密码不正确', 'error'); }
+            try { await AV.User.logIn(u, p); checkAuth(); } catch (err) { Swal.fire('错误', '账号或密码错误', 'error'); }
         };
 
         document.getElementById('register-form').onsubmit = async (e) => {
@@ -155,10 +150,10 @@
             const u = document.getElementById('r-username').value.trim();
             const p = document.getElementById('r-password').value.trim();
             const code = document.getElementById('r-admin-code').value.trim();
-            if (code !== SUPER_ADMIN_CODE) return Swal.fire('失败', '管理员授权码错误', 'error');
+            if (code !== SUPER_ADMIN_CODE) return Swal.fire('失败', '授权码错误', 'error');
             const user = new AV.User();
             user.setUsername(u); user.setPassword(p);
-            try { await user.signUp(); Swal.fire('成功', '注册完成，请登录', 'success'); showView('login-view'); } catch (err) { Swal.fire('注册失败', err.message, 'error'); }
+            try { await user.signUp(); Swal.fire('成功', '注册完成', 'success'); showView('login-view'); } catch (err) { Swal.fire('注册失败', err.message, 'error'); }
         };
 
         document.getElementById('password-form').onsubmit = async (e) => {
@@ -170,17 +165,9 @@
                 const user = await AV.User.logIn(u, oldP);
                 user.setPassword(newP);
                 await user.save();
-                Swal.fire('成功', '密码已修改，请重新登录', 'success');
-                AV.User.logOut();
-                showView('login-view');
-            } catch (err) { Swal.fire('失败', '旧密码错误或用户不存在', 'error'); }
+                Swal.fire('成功', '密码已修改，请重登', 'success').then(() => { AV.User.logOut(); location.reload(); });
+            } catch (err) { Swal.fire('失败', '旧密码验证失败', 'error'); }
         };
-
-        async function adminResetTip() {
-            const { value: code } = await Swal.fire({ title: '管理员重置', text: '验证管理员权限后手动重置', input: 'text', inputLabel: '请输入授权码', showCancelButton: true });
-            if (code === SUPER_ADMIN_CODE) { Swal.fire('验证通过', '请在LeanCloud后台删除用户后重新注册', 'info'); }
-            else if (code) { Swal.fire('错误', '授权码无效', 'error'); }
-        }
 
         function checkAuth() {
             const user = AV.User.current();
@@ -192,28 +179,25 @@
             } else { showView('login-view'); }
         }
 
-        function logout() { AV.User.logOut(); location.reload(); }
-
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER);
             client.on('connect', () => {
                 client.subscribe(MQTT_TOPIC + '/status');
-                // 仅连接到服务器，不代表设备在线，所以此处保持离线视觉显示
-                updateStatus(false, "已连上云端，等待设备响应...");
+                // 清除可能存在的旧保留消息（防误开关键）
+                client.publish(MQTT_TOPIC + '/control', '', { retain: true });
+                updateStatus(false, "已连上云端，等待设备...");
             });
 
             client.on('message', (topic, message) => {
-                const msg = message.toString();
                 if (topic === MQTT_TOPIC + '/status') {
-                    if (msg === 'online') { updateStatus(true, "门禁设备已连接"); }
-                    else { updateStatus(false, "门禁设备已离线"); }
+                    const msg = message.toString();
+                    updateStatus(msg === 'online', msg === 'online' ? "设备已就绪" : "设备已离线");
                 }
             });
         }
 
-        // 修改点：严格控制按钮状态
         function updateStatus(isOnline, text) {
-            deviceOnline = isOnline; // 更新全局状态变量
+            deviceOnline = isOnline;
             const dot = document.getElementById('status-dot');
             const msg = document.getElementById('status-msg');
             const btn = document.getElementById('open-btn');
@@ -223,40 +207,45 @@
             if (isOnline) {
                 dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 text-[10px] font-black text-green-600";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
-                msg.textContent = text;
-                msg.className = "mt-6 text-xs font-bold text-green-500";
                 btn.disabled = false;
                 iconBg.className = "p-4 rounded-full bg-blue-50 text-blue-500";
                 ring.classList.add('active-glow', 'opacity-100');
             } else {
                 dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
-                msg.textContent = text;
-                msg.className = "mt-6 text-xs font-bold text-slate-400";
-                btn.disabled = true; // 强制禁用按钮
+                btn.disabled = true;
                 iconBg.className = "p-4 rounded-full bg-slate-50 text-slate-300";
                 ring.classList.remove('active-glow', 'opacity-100');
             }
+            msg.textContent = text;
         }
 
-        // 修改点：开门前双重检查
         async function openDoor() {
             if (!deviceOnline) {
-                Swal.fire({ title: '无法开门', text: '设备目前处于离线状态，请检查电源或WiFi', icon: 'error' });
+                Swal.fire({ title: '无法开门', text: '设备不在线', icon: 'error' });
                 return;
             }
 
-            client.publish(MQTT_TOPIC + '/control', 'open');
+            // 核心修正：显式设置 retain: false，并添加错误处理回调
+            client.publish(MQTT_TOPIC + '/control', 'open', { qos: 1, retain: false }, (err) => {
+                if (err) {
+                    Swal.fire('失败', '指令发送失败', 'error');
+                } else {
+                    Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+                }
+            });
+
             const btn = document.getElementById('open-btn');
             btn.classList.add('scale-90');
             setTimeout(() => btn.classList.remove('scale-90'), 150);
-            Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
 
-            const log = new DoorLog();
-            log.set('username', AV.User.current().getUsername());
-            log.set('actionTime', new Date().toLocaleString('zh-CN', { hour12: false }));
-            await log.save();
-            fetchLogs();
+            try {
+                const log = new DoorLog();
+                log.set('username', AV.User.current().getUsername());
+                log.set('actionTime', new Date().toLocaleString('zh-CN', { hour12: false }));
+                await log.save();
+                fetchLogs();
+            } catch (e) {}
         }
 
         async function fetchLogs() {
@@ -273,46 +262,34 @@
         }
 
         function updateChart(data) {
-            const userCounts = {};
-            data.forEach(item => {
-                const name = item.get('username');
-                userCounts[name] = (userCounts[name] || 0) + 1;
-            });
+            const counts = {};
+            data.forEach(item => { const n = item.get('username'); counts[n] = (counts[n] || 0) + 1; });
             const ctx = document.getElementById('usageChart').getContext('2d');
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: Object.keys(userCounts),
-                    datasets: [{
-                        label: '开门次数',
-                        data: Object.values(userCounts),
-                        backgroundColor: '#6366f1',
-                        borderRadius: 6,
-                        barThickness: 20
-                    }]
+                    labels: Object.keys(counts),
+                    datasets: [{ label: '次数', data: Object.values(counts), backgroundColor: '#6366f1', borderRadius: 6 }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { display: false } },
-                        x: { grid: { display: false } }
-                    }
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
                 }
             });
         }
 
         async function clearLogs() {
-            const { value: pass } = await Swal.fire({ title: '验证', input: 'password', inputLabel: '输入管理员密码清空日志', showCancelButton: true });
+            const { value: pass } = await Swal.fire({ title: '验证', input: 'password', inputLabel: '管理员密码', showCancelButton: true });
             if (pass === SUPER_ADMIN_CODE) {
                 const results = await new AV.Query('DoorLog').find();
                 await AV.Object.destroyAll(results);
                 fetchLogs();
-                Swal.fire('成功', '日志已清空', 'success');
             }
         }
+
+        function logout() { AV.User.logOut(); location.reload(); }
     </script>
 </body>
 </html>
