@@ -90,12 +90,12 @@
                 </div>
 
                 <div class="p-8 flex flex-col items-center">
-                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-40 h-40 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-90 disabled:opacity-50 disabled:cursor-not-allowed group">
+                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-40 h-40 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-90 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed group">
                         <div id="icon-bg" class="p-4 rounded-full bg-slate-50 text-slate-300 transition-colors"><i data-lucide="power" class="w-10 h-10"></i></div>
                         <span class="text-[10px] font-black tracking-widest text-slate-400 uppercase">点击开门</span>
                         <div id="button-ring" class="absolute -inset-2 rounded-full border-2 border-blue-100 opacity-0 transition-all"></div>
                     </button>
-                    <p id="status-msg" class="mt-6 text-xs font-bold text-slate-400">正在连接云端...</p>
+                    <p id="status-msg" class="mt-6 text-xs font-bold text-slate-400">正在同步设备状态...</p>
                 </div>
             </div>
 
@@ -123,96 +123,65 @@
     </div>
 
     <script>
-        // ======= [配置区域] =======
         const LC_ID = "Jyx8PbQRIOcVQebOYGybRSRY-gzGzoHsz";
         const LC_KEY = "WnBolGTGBGuia4TkRB8y02JS";
         const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com";
-
         const SUPER_ADMIN_CODE = "AHCLGCXX123456";
         const MQTT_BROKER = "wss://broker.emqx.io:8084/mqtt";
-        const MQTT_TOPIC = "ahclgcxx/door"; // 修改了主题结构，方便扩展
-        // =========================
+        const MQTT_TOPIC = "ahclgcxx/door";
 
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
         let client = null;
         let myChart = null;
+        let deviceOnline = false; // 全局变量，记录设备真实状态
 
         window.onload = () => { lucide.createIcons(); checkAuth(); };
 
-        // 视图切换
         function showView(id) {
             ['login-view', 'register-view', 'password-view', 'dashboard-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
-        // --- 1. 登录逻辑 ---
         document.getElementById('login-form').onsubmit = async (e) => {
             e.preventDefault();
             const u = document.getElementById('l-username').value.trim();
             const p = document.getElementById('l-password').value.trim();
-            try {
-                await AV.User.logIn(u, p);
-                checkAuth();
-            } catch (err) { Swal.fire('错误', '账号或密码不正确', 'error'); }
+            try { await AV.User.logIn(u, p); checkAuth(); } catch (err) { Swal.fire('错误', '账号或密码不正确', 'error'); }
         };
 
-        // --- 2. 注册逻辑 ---
         document.getElementById('register-form').onsubmit = async (e) => {
             e.preventDefault();
             const u = document.getElementById('r-username').value.trim();
             const p = document.getElementById('r-password').value.trim();
             const code = document.getElementById('r-admin-code').value.trim();
-
             if (code !== SUPER_ADMIN_CODE) return Swal.fire('失败', '管理员授权码错误', 'error');
-
             const user = new AV.User();
             user.setUsername(u); user.setPassword(p);
-            try {
-                await user.signUp();
-                Swal.fire('成功', '注册完成，请登录', 'success');
-                showView('login-view');
-            } catch (err) { Swal.fire('注册失败', err.message, 'error'); }
+            try { await user.signUp(); Swal.fire('成功', '注册完成，请登录', 'success'); showView('login-view'); } catch (err) { Swal.fire('注册失败', err.message, 'error'); }
         };
 
-        // --- 3. 修改密码逻辑 (新增) ---
         document.getElementById('password-form').onsubmit = async (e) => {
             e.preventDefault();
             const u = document.getElementById('p-username').value.trim();
             const oldP = document.getElementById('p-old-pass').value.trim();
             const newP = document.getElementById('p-new-pass').value.trim();
-
             try {
-                // 先验证旧密码
                 const user = await AV.User.logIn(u, oldP);
                 user.setPassword(newP);
                 await user.save();
                 Swal.fire('成功', '密码已修改，请重新登录', 'success');
                 AV.User.logOut();
                 showView('login-view');
-            } catch (err) {
-                Swal.fire('失败', '旧密码错误或用户不存在', 'error');
-            }
+            } catch (err) { Swal.fire('失败', '旧密码错误或用户不存在', 'error'); }
         };
 
-        // 管理员重置提示
         async function adminResetTip() {
-            const { value: code } = await Swal.fire({
-                title: '管理员重置',
-                text: '如果用户忘记密码，请验证管理员权限后，删除该用户并重新注册。',
-                input: 'text',
-                inputLabel: '请输入管理员授权码以确认',
-                showCancelButton: true
-            });
-
-            if (code === SUPER_ADMIN_CODE) {
-                Swal.fire('验证通过', '请在LeanCloud后台或使用管理工具删除旧账号，然后让用户重新注册同名账号。', 'info');
-            } else if (code) {
-                Swal.fire('错误', '授权码无效', 'error');
-            }
+            const { value: code } = await Swal.fire({ title: '管理员重置', text: '验证管理员权限后手动重置', input: 'text', inputLabel: '请输入授权码', showCancelButton: true });
+            if (code === SUPER_ADMIN_CODE) { Swal.fire('验证通过', '请在LeanCloud后台删除用户后重新注册', 'info'); }
+            else if (code) { Swal.fire('错误', '授权码无效', 'error'); }
         }
 
-        // --- 核心逻辑 ---
         function checkAuth() {
             const user = AV.User.current();
             if (user) {
@@ -227,64 +196,62 @@
 
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER);
-
             client.on('connect', () => {
-                // 订阅控制回执和状态
-                client.subscribe(MQTT_TOPIC + '/control');
-                client.subscribe(MQTT_TOPIC + '/status'); // 监听 ESP32 状态
-
-                // 默认显示“服务器已连接”，等待 ESP32 发送状态
-                updateStatus(true, "服务器连接成功");
+                client.subscribe(MQTT_TOPIC + '/status');
+                // 仅连接到服务器，不代表设备在线，所以此处保持离线视觉显示
+                updateStatus(false, "已连上云端，等待设备响应...");
             });
 
-            // 接收消息处理
             client.on('message', (topic, message) => {
                 const msg = message.toString();
                 if (topic === MQTT_TOPIC + '/status') {
-                    // 如果收到 "online" 显示在线，收到 "offline" (遗嘱) 显示离线
-                    if (msg === 'online') {
-                        updateStatus(true, "设备在线");
-                    } else {
-                        updateStatus(false, "设备离线");
-                    }
+                    if (msg === 'online') { updateStatus(true, "门禁设备已连接"); }
+                    else { updateStatus(false, "门禁设备已离线"); }
                 }
             });
         }
 
+        // 修改点：严格控制按钮状态
         function updateStatus(isOnline, text) {
+            deviceOnline = isOnline; // 更新全局状态变量
             const dot = document.getElementById('status-dot');
             const msg = document.getElementById('status-msg');
             const btn = document.getElementById('open-btn');
             const iconBg = document.getElementById('icon-bg');
+            const ring = document.getElementById('button-ring');
 
             if (isOnline) {
                 dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 text-[10px] font-black text-green-600";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
-                msg.textContent = text || "系统就绪";
+                msg.textContent = text;
                 msg.className = "mt-6 text-xs font-bold text-green-500";
                 btn.disabled = false;
                 iconBg.className = "p-4 rounded-full bg-blue-50 text-blue-500";
-                document.getElementById('button-ring').classList.add('active-glow', 'opacity-100');
+                ring.classList.add('active-glow', 'opacity-100');
             } else {
                 dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
-                msg.textContent = text || "设备未连接";
+                msg.textContent = text;
                 msg.className = "mt-6 text-xs font-bold text-slate-400";
-                // 保持按钮不可用或显示灰色
+                btn.disabled = true; // 强制禁用按钮
+                iconBg.className = "p-4 rounded-full bg-slate-50 text-slate-300";
+                ring.classList.remove('active-glow', 'opacity-100');
             }
         }
 
+        // 修改点：开门前双重检查
         async function openDoor() {
-            // 发送开门指令
-            client.publish(MQTT_TOPIC + '/control', 'open');
+            if (!deviceOnline) {
+                Swal.fire({ title: '无法开门', text: '设备目前处于离线状态，请检查电源或WiFi', icon: 'error' });
+                return;
+            }
 
-            // 动画反馈
+            client.publish(MQTT_TOPIC + '/control', 'open');
             const btn = document.getElementById('open-btn');
             btn.classList.add('scale-90');
             setTimeout(() => btn.classList.remove('scale-90'), 150);
-            Swal.fire({ title: '开门指令已发送', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
+            Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
 
-            // 记录日志
             const log = new DoorLog();
             log.set('username', AV.User.current().getUsername());
             log.set('actionTime', new Date().toLocaleString('zh-CN', { hour12: false }));
@@ -296,31 +263,23 @@
             const query = new AV.Query('DoorLog');
             query.descending('createdAt').limit(20);
             const results = await query.find();
-
-            // 1. 渲染日志列表
             document.getElementById('log-container').innerHTML = results.map(item => `
                 <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center fade-in">
                     <span class="text-xs font-bold text-slate-700">${item.get('username')}</span>
                     <span class="text-[10px] text-slate-400 font-medium">${item.get('actionTime').split(' ')[1] || item.get('actionTime')}</span>
                 </div>
             `).join('');
-
-            // 2. 渲染图表数据
             updateChart(results);
         }
 
-        // --- 图表渲染逻辑 (新增) ---
         function updateChart(data) {
             const userCounts = {};
             data.forEach(item => {
                 const name = item.get('username');
                 userCounts[name] = (userCounts[name] || 0) + 1;
             });
-
             const ctx = document.getElementById('usageChart').getContext('2d');
-
-            if (myChart) myChart.destroy(); // 销毁旧图表防止重叠
-
+            if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
