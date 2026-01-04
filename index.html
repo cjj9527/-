@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云端智能门禁控制中心 Pro</title>
+    <title>云端门禁系统 Pro Max</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -12,107 +12,79 @@
     <script src="https://cdn.jsdelivr.net/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f8fafc; margin: 0; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background: #f1f5f9; }
         .hidden { display: none !important; }
         .fade-in { animation: fadeIn 0.4s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes breath { 0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.1); } 50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.4); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .glass-card { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.5); }
         .active-glow { animation: breath 3s infinite; }
-        .glass-card { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.5); }
+        @keyframes breath { 0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); } 50% { box-shadow: 0 0 35px rgba(59, 130, 246, 0.5); } }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 bg-slate-100">
+<body class="min-h-screen flex items-center justify-center p-4">
 
-    <div id="app" class="w-full max-w-md pb-10">
-
-        <div id="login-view" class="glass-card rounded-[2rem] p-8 shadow-2xl shadow-blue-100 fade-in">
-            <div class="text-center mb-8">
-                <div class="inline-flex p-4 rounded-3xl bg-blue-600 text-white shadow-lg mb-4"><i data-lucide="shield-check" class="w-8 h-8"></i></div>
-                <h2 class="text-2xl font-extrabold text-slate-900">安全登录</h2>
-            </div>
+    <div id="app" class="w-full max-w-md">
+        <div id="login-view" class="glass-card rounded-[2.5rem] p-8 shadow-2xl fade-in">
+            <h2 class="text-2xl font-black text-center mb-6">安全验证</h2>
             <form id="login-form" class="space-y-4">
-                <input type="text" id="l-username" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="账号">
-                <input type="password" id="l-password" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-blue-500 transition-colors" placeholder="密码">
-                <button type="submit" id="l-btn" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg shadow-blue-200 active:scale-95 transition-transform">登录系统</button>
-                <div class="flex justify-between text-xs font-bold mt-4 px-2">
-                    <button type="button" onclick="showView('register-view')" class="text-blue-500">注册新账号</button>
-                    <button type="button" onclick="showView('password-view')" class="text-slate-400">修改密码</button>
-                </div>
+                <input type="text" id="l-username" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="账号">
+                <input type="password" id="l-password" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="密码">
+                <button type="submit" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">进入系统</button>
+                <button type="button" onclick="showView('register-view')" class="w-full text-xs text-blue-500 font-bold mt-2">注册新账号</button>
             </form>
         </div>
 
-        <div id="register-view" class="glass-card rounded-[2rem] p-8 shadow-2xl shadow-indigo-100 fade-in hidden">
-            <div class="text-center mb-8">
-                <div class="inline-flex p-4 rounded-3xl bg-indigo-600 text-white shadow-lg mb-4"><i data-lucide="user-plus" class="w-8 h-8"></i></div>
-                <h2 class="text-2xl font-extrabold text-slate-900">新用户注册</h2>
-            </div>
+        <div id="register-view" class="glass-card rounded-[2.5rem] p-8 shadow-2xl fade-in hidden">
+            <h2 class="text-2xl font-black text-center mb-6">用户注册</h2>
             <form id="register-form" class="space-y-4">
-                <input type="text" id="r-username" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="设置账号">
-                <input type="password" id="r-password" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="设置密码">
-                <input type="password" id="r-admin-code" required class="w-full px-5 py-3 bg-orange-50 border border-orange-100 rounded-xl outline-none" placeholder="管理员授权码">
-                <button type="submit" id="r-btn" class="w-full py-3.5 bg-indigo-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform">确认注册</button>
-                <button type="button" onclick="showView('login-view')" class="w-full text-xs text-slate-500 font-bold mt-2">返回登录</button>
-            </form>
-        </div>
-
-        <div id="password-view" class="glass-card rounded-[2rem] p-8 shadow-2xl shadow-orange-100 fade-in hidden">
-            <div class="text-center mb-8">
-                <div class="inline-flex p-4 rounded-3xl bg-orange-500 text-white shadow-lg mb-4"><i data-lucide="lock-keyhole" class="w-8 h-8"></i></div>
-                <h2 class="text-2xl font-extrabold text-slate-900">修改密码</h2>
-                <p class="text-xs text-slate-400 mt-2">修改后需重新登录</p>
-            </div>
-            <form id="password-form" class="space-y-4">
-                <input type="text" id="p-username" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="账号">
-                <input type="password" id="p-old-pass" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none" placeholder="旧密码">
-                <input type="password" id="p-new-pass" required class="w-full px-5 py-3 bg-white border border-slate-200 rounded-xl outline-none focus:border-orange-500" placeholder="新密码">
-                <button type="submit" class="w-full py-3.5 bg-orange-500 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform">确认修改</button>
-                <button type="button" onclick="showView('login-view')" class="w-full text-xs text-slate-500 font-bold mt-2">返回登录</button>
+                <input type="text" id="r-username" required class="w-full px-5 py-3 border rounded-xl" placeholder="用户名">
+                <input type="password" id="r-password" required class="w-full px-5 py-3 border rounded-xl" placeholder="设置密码">
+                <input type="password" id="r-admin-code" required class="w-full px-5 py-3 border border-orange-200 rounded-xl" placeholder="管理员授权码">
+                <button type="submit" class="w-full py-3.5 bg-indigo-600 text-white rounded-xl">完成注册</button>
+                <button type="button" onclick="showView('login-view')" class="w-full text-xs mt-2">返回登录</button>
             </form>
         </div>
 
         <div id="dashboard-view" class="hidden fade-in space-y-4">
-            <div class="glass-card rounded-[2rem] overflow-hidden shadow-xl">
-                <div class="px-6 py-4 flex justify-between items-center border-b border-slate-100">
-                    <div>
-                        <p class="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Door Control</p>
-                        <h1 id="current-user" class="text-lg font-bold text-slate-800">User</h1>
-                    </div>
-                    <div id="status-dot" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-400 transition-all">
+            <div class="glass-card rounded-[2.5rem] p-6 shadow-xl">
+                <div class="flex justify-between items-center mb-6">
+                    <span id="current-user" class="font-bold text-slate-700">User</span>
+                    <div id="status-dot" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE
                     </div>
                 </div>
-
-                <div class="p-8 flex flex-col items-center">
-                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-40 h-40 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-90 disabled:opacity-40 disabled:grayscale disabled:cursor-not-allowed group">
-                        <div id="icon-bg" class="p-4 rounded-full bg-slate-50 text-slate-300 transition-colors"><i data-lucide="power" class="w-10 h-10"></i></div>
-                        <span class="text-[10px] font-black tracking-widest text-slate-400 uppercase">点击开门</span>
+                <div class="flex flex-col items-center">
+                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-36 h-36 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center transition-all active:scale-90 disabled:opacity-40">
+                        <div id="icon-bg" class="p-4 rounded-full bg-slate-50 text-slate-300"><i data-lucide="key-round" class="w-10 h-10"></i></div>
+                        <span class="text-[10px] font-black uppercase text-slate-400 mt-2">OPEN</span>
                         <div id="button-ring" class="absolute -inset-2 rounded-full border-2 border-blue-100 opacity-0 transition-all"></div>
                     </button>
-                    <p id="status-msg" class="mt-6 text-xs font-bold text-slate-400">正在同步设备状态...</p>
+                    <p id="status-msg" class="mt-4 text-xs font-bold text-slate-400 italic">正在检测硬件...</p>
                 </div>
             </div>
 
-            <div class="glass-card rounded-[2rem] p-5 shadow-lg">
-                <div class="flex items-center gap-2 mb-4">
-                    <i data-lucide="bar-chart-3" class="w-4 h-4 text-indigo-500"></i>
-                    <h3 class="text-xs font-bold text-slate-600 uppercase">近期通行统计</h3>
+            <div class="glass-card rounded-[2rem] p-5 shadow-lg h-52">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-blue-500"></i>
+                    <span class="text-[10px] font-black text-slate-500 uppercase">开门频次分析</span>
                 </div>
-                <div class="h-40 w-full">
-                    <canvas id="usageChart"></canvas>
-                </div>
+                <div class="h-36 w-full"><canvas id="usageChart"></canvas></div>
             </div>
 
             <div class="glass-card rounded-[2rem] p-5 shadow-lg">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-xs font-bold text-slate-600 uppercase">云端日志</h3>
-                    <div class="flex gap-2 text-[10px] font-bold">
-                        <button onclick="clearLogs()" class="text-red-400 hover:text-red-500">清空</button>
+                    <div class="flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-slate-400"></i>
+                        <span class="text-[10px] font-black text-slate-500 uppercase">操作审计</span>
+                    </div>
+                    <div class="flex gap-3 text-[10px] font-bold">
+                        <button onclick="clearLogs()" class="text-red-400 hover:text-red-600">清空记录</button>
                         <button onclick="logout()" class="text-slate-400 hover:text-slate-600">退出</button>
                     </div>
                 </div>
-                <div id="log-container" class="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-1"></div>
+                <div id="log-container" class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar pr-1"></div>
             </div>
         </div>
     </div>
@@ -123,53 +95,20 @@
         const LC_SERVER = "https://jyx8pbqr.lc-cn-n1-shared.com";
         const SUPER_ADMIN_CODE = "AHCLGCXX123456";
         const MQTT_BROKER = "wss://broker.emqx.io:8084/mqtt";
-        const MQTT_TOPIC = "ahclgcxx/door";
+        const MQTT_TOPIC_BASE = "ahclgcxx/door";
 
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
-        let client = null;
-        let myChart = null;
-        let deviceOnline = false;
+        let client = null, myChart = null, deviceOnline = false;
 
         window.onload = () => { lucide.createIcons(); checkAuth(); };
 
         function showView(id) {
-            ['login-view', 'register-view', 'password-view', 'dashboard-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
+            ['login-view', 'register-view', 'dashboard-view'].forEach(v => document.getElementById(v).classList.add('hidden'));
             document.getElementById(id).classList.remove('hidden');
         }
 
-        document.getElementById('login-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('l-username').value.trim();
-            const p = document.getElementById('l-password').value.trim();
-            try { await AV.User.logIn(u, p); checkAuth(); } catch (err) { Swal.fire('错误', '账号或密码错误', 'error'); }
-        };
-
-        document.getElementById('register-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('r-username').value.trim();
-            const p = document.getElementById('r-password').value.trim();
-            const code = document.getElementById('r-admin-code').value.trim();
-            if (code !== SUPER_ADMIN_CODE) return Swal.fire('失败', '授权码错误', 'error');
-            const user = new AV.User();
-            user.setUsername(u); user.setPassword(p);
-            try { await user.signUp(); Swal.fire('成功', '注册完成', 'success'); showView('login-view'); } catch (err) { Swal.fire('注册失败', err.message, 'error'); }
-        };
-
-        document.getElementById('password-form').onsubmit = async (e) => {
-            e.preventDefault();
-            const u = document.getElementById('p-username').value.trim();
-            const oldP = document.getElementById('p-old-pass').value.trim();
-            const newP = document.getElementById('p-new-pass').value.trim();
-            try {
-                const user = await AV.User.logIn(u, oldP);
-                user.setPassword(newP);
-                await user.save();
-                Swal.fire('成功', '密码已修改，请重登', 'success').then(() => { AV.User.logOut(); location.reload(); });
-            } catch (err) { Swal.fire('失败', '旧密码验证失败', 'error'); }
-        };
-
-        function checkAuth() {
+        async function checkAuth() {
             const user = AV.User.current();
             if (user) {
                 document.getElementById('current-user').textContent = user.getUsername();
@@ -182,36 +121,30 @@
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER);
             client.on('connect', () => {
-                client.subscribe(MQTT_TOPIC + '/status');
-                // 清除可能存在的旧保留消息（防误开关键）
-                client.publish(MQTT_TOPIC + '/control', '', { retain: true });
-                updateStatus(false, "已连上云端，等待设备...");
+                client.subscribe(MQTT_TOPIC_BASE + '/status');
+                client.publish(MQTT_TOPIC_BASE + '/control', '', { retain: true });
             });
-
             client.on('message', (topic, message) => {
-                if (topic === MQTT_TOPIC + '/status') {
-                    const msg = message.toString();
-                    updateStatus(msg === 'online', msg === 'online' ? "设备已就绪" : "设备已离线");
+                if (topic === MQTT_TOPIC_BASE + '/status') {
+                    const status = message.toString();
+                    updateStatus(status === 'online', status === 'online' ? "设备已就绪" : "设备已离线");
                 }
             });
         }
 
         function updateStatus(isOnline, text) {
             deviceOnline = isOnline;
-            const dot = document.getElementById('status-dot');
-            const msg = document.getElementById('status-msg');
-            const btn = document.getElementById('open-btn');
-            const iconBg = document.getElementById('icon-bg');
-            const ring = document.getElementById('button-ring');
+            const dot = document.getElementById('status-dot'), msg = document.getElementById('status-msg'), btn = document.getElementById('open-btn');
+            const ring = document.getElementById('button-ring'), iconBg = document.getElementById('icon-bg');
 
             if (isOnline) {
-                dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-100 text-[10px] font-black text-green-600";
+                dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-[10px] font-black text-green-600";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
                 btn.disabled = false;
                 iconBg.className = "p-4 rounded-full bg-blue-50 text-blue-500";
                 ring.classList.add('active-glow', 'opacity-100');
             } else {
-                dot.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
+                dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
                 btn.disabled = true;
                 iconBg.className = "p-4 rounded-full bg-slate-50 text-slate-300";
@@ -221,41 +154,24 @@
         }
 
         async function openDoor() {
-            if (!deviceOnline) {
-                Swal.fire({ title: '无法开门', text: '设备不在线', icon: 'error' });
-                return;
-            }
-
-            // 核心修正：显式设置 retain: false，并添加错误处理回调
-            client.publish(MQTT_TOPIC + '/control', 'open', { qos: 1, retain: false }, (err) => {
-                if (err) {
-                    Swal.fire('失败', '指令发送失败', 'error');
-                } else {
-                    Swal.fire({ title: '开门指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
-                }
-            });
-
-            const btn = document.getElementById('open-btn');
-            btn.classList.add('scale-90');
-            setTimeout(() => btn.classList.remove('scale-90'), 150);
-
-            try {
-                const log = new DoorLog();
-                log.set('username', AV.User.current().getUsername());
-                log.set('actionTime', new Date().toLocaleString('zh-CN', { hour12: false }));
-                await log.save();
-                fetchLogs();
-            } catch (e) {}
+            if (!deviceOnline) return;
+            client.publish(MQTT_TOPIC_BASE + '/control', 'open', { retain: false });
+            Swal.fire({ title: '已发送', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
+            const log = new DoorLog();
+            log.set('username', AV.User.current().getUsername());
+            log.set('actionTime', new Date().toLocaleTimeString());
+            await log.save();
+            fetchLogs();
         }
 
         async function fetchLogs() {
-            const query = new AV.Query('DoorLog');
-            query.descending('createdAt').limit(20);
-            const results = await query.find();
-            document.getElementById('log-container').innerHTML = results.map(item => `
-                <div class="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center fade-in">
-                    <span class="text-xs font-bold text-slate-700">${item.get('username')}</span>
-                    <span class="text-[10px] text-slate-400 font-medium">${item.get('actionTime').split(' ')[1] || item.get('actionTime')}</span>
+            const q = new AV.Query('DoorLog');
+            q.descending('createdAt').limit(30);
+            const results = await q.find();
+            document.getElementById('log-container').innerHTML = results.map(i => `
+                <div class="bg-white p-2 rounded-lg border border-slate-50 flex justify-between items-center">
+                    <span class="text-[10px] font-bold text-slate-600">${i.get('username')}</span>
+                    <span class="text-[9px] text-slate-300 font-mono">${i.get('actionTime')}</span>
                 </div>
             `).join('');
             updateChart(results);
@@ -263,32 +179,46 @@
 
         function updateChart(data) {
             const counts = {};
-            data.forEach(item => { const n = item.get('username'); counts[n] = (counts[n] || 0) + 1; });
+            data.forEach(i => { const u = i.get('username'); counts[u] = (counts[u] || 0) + 1; });
             const ctx = document.getElementById('usageChart').getContext('2d');
             if (myChart) myChart.destroy();
             myChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: Object.keys(counts),
-                    datasets: [{ label: '次数', data: Object.values(counts), backgroundColor: '#6366f1', borderRadius: 6 }]
+                    datasets: [{
+                        label: '次数',
+                        data: Object.values(counts),
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 20, // 圆角增加
+                        barThickness: 12, // 这里调细了！
+                        maxBarThickness: 15
+                    }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false,
+                    responsive: true,
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 9 } }, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                    }
                 }
             });
         }
 
         async function clearLogs() {
-            const { value: pass } = await Swal.fire({ title: '验证', input: 'password', inputLabel: '管理员密码', showCancelButton: true });
-            if (pass === SUPER_ADMIN_CODE) {
-                const results = await new AV.Query('DoorLog').find();
-                await AV.Object.destroyAll(results);
+            const { value: code } = await Swal.fire({ title: '安全验证', text: '输入授权码清空所有记录', input: 'password', showCancelButton: true });
+            if (code === SUPER_ADMIN_CODE) {
+                const logs = await new AV.Query('DoorLog').find();
+                await AV.Object.destroyAll(logs);
                 fetchLogs();
+                Swal.fire('清空成功', '', 'success');
             }
         }
 
+        document.getElementById('login-form').onsubmit = async (e) => { e.preventDefault(); try { await AV.User.logIn(document.getElementById('l-username').value, document.getElementById('l-password').value); checkAuth(); } catch { Swal.fire('错误','账号或密码错误','error'); } };
+        document.getElementById('register-form').onsubmit = async (e) => { e.preventDefault(); if(document.getElementById('r-admin-code').value !== SUPER_ADMIN_CODE) return; const user = new AV.User(); user.setUsername(document.getElementById('r-username').value); user.setPassword(document.getElementById('r-password').value); await user.signUp(); showView('login-view'); };
         function logout() { AV.User.logOut(); location.reload(); }
     </script>
 </body>
