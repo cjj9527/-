@@ -50,7 +50,12 @@
         <div id="dashboard-view" class="hidden fade-in space-y-4">
             <div class="glass-card rounded-[2.5rem] p-6 shadow-xl">
                 <div class="flex justify-between items-center mb-6">
-                    <span id="current-user" class="font-bold text-slate-700">User</span>
+                    <div class="flex items-center gap-2">
+                        <span id="current-user" class="font-bold text-slate-700">User</span>
+                        <button onclick="changePassword()" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                            <i data-lucide="settings-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
                     <div id="status-dot" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE
                     </div>
@@ -112,7 +117,40 @@
                 showView('dashboard-view');
                 if(!client) initMqtt();
                 fetchLogs();
+                lucide.createIcons(); // 刷新图标
             } else { showView('login-view'); }
+        }
+
+        // 修改密码功能
+        async function changePassword() {
+            const { value: formValues } = await Swal.fire({
+                title: '修改密码',
+                html:
+                    '<input id="swal-input1" class="swal2-input" placeholder="原密码" type="password">' +
+                    '<input id="swal-input2" class="swal2-input" placeholder="新密码" type="password">',
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: '提交修改',
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal-input1').value,
+                        document.getElementById('swal-input2').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [oldPw, newPw] = formValues;
+                if (!oldPw || !newPw) return Swal.fire('错误', '请填写完整', 'error');
+
+                const user = AV.User.current();
+                try {
+                    await user.updatePassword(oldPw, newPw);
+                    Swal.fire('成功', '密码已修改，请重新登录', 'success').then(() => logout());
+                } catch (error) {
+                    Swal.fire('失败', '原密码错误或网络异常', 'error');
+                }
+            }
         }
 
         function initMqtt() {
@@ -188,7 +226,7 @@
                         data: Object.values(counts),
                         backgroundColor: '#3b82f6',
                         borderRadius: 10,
-                        barThickness: 8, // 纤细柱形图
+                        barThickness: 8,
                         maxBarThickness: 10
                     }]
                 },
