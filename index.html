@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云端门禁 Pro Max</title>
+    <title>云端门禁 Pro Max - 系统监控版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -47,9 +47,9 @@
             </form>
         </div>
 
-        <div id="dashboard-view" class="hidden fade-in space-y-4">
+        <div id="dashboard-view" class="hidden fade-in space-y-3">
             <div class="glass-card rounded-[2.5rem] p-6 shadow-xl">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-2">
                         <span id="current-user" class="font-bold text-slate-700">User</span>
                         <button onclick="changePassword()" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
@@ -60,33 +60,54 @@
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE
                     </div>
                 </div>
-                <div class="flex flex-col items-center">
-                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-36 h-36 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center transition-all active:scale-90 disabled:opacity-40">
-                        <div id="icon-bg" class="p-4 rounded-full bg-slate-50 text-slate-300"><i data-lucide="key-round" class="w-10 h-10"></i></div>
-                        <span class="text-[10px] font-black uppercase text-slate-400 mt-2">OPEN</span>
+
+                <div class="flex flex-col items-center mb-6">
+                    <button id="open-btn" onclick="openDoor()" disabled class="relative w-28 h-28 rounded-full bg-white shadow-2xl flex flex-col items-center justify-center transition-all active:scale-90 disabled:opacity-40">
+                        <div id="icon-bg" class="p-4 rounded-full bg-slate-50 text-slate-300"><i data-lucide="key-round" class="w-7 h-7"></i></div>
+                        <span class="text-[9px] font-black uppercase text-slate-400 mt-1">OPEN</span>
                         <div id="button-ring" class="absolute -inset-2 rounded-full border-2 border-blue-100 opacity-0 transition-all"></div>
                     </button>
-                    <p id="status-msg" class="mt-4 text-xs font-bold text-slate-400 italic">检测设备中...</p>
                 </div>
-            </div>
 
-            <div class="glass-card rounded-[2rem] p-5 shadow-lg h-52">
-                <div class="flex items-center gap-2 mb-2">
-                    <i data-lucide="bar-chart-2" class="w-4 h-4 text-blue-500"></i>
-                    <span class="text-[10px] font-black text-slate-500 uppercase">统计分析</span>
-                </div>
-                <div class="h-36 w-full"><canvas id="usageChart"></canvas></div>
-            </div>
-
-            <div class="glass-card rounded-[2rem] p-5 shadow-lg">
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-[10px] font-black text-slate-500 uppercase">操作日志</span>
-                    <div class="flex gap-3 text-[10px] font-bold">
-                        <button onclick="clearLogs()" class="text-red-400">清空记录</button>
-                        <button onclick="logout()" class="text-slate-400">退出系统</button>
+                <div class="grid grid-cols-2 gap-4 border-t pt-4">
+                    <div class="flex flex-col items-center">
+                        <div class="relative w-16 h-16">
+                            <canvas id="cpuChart"></canvas>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="cpu-val" class="text-[9px] font-bold text-blue-600">0%</span>
+                            </div>
+                        </div>
+                        <span class="text-[8px] font-black text-slate-400 mt-1 uppercase">CPU 占用</span>
+                    </div>
+                    <div class="flex flex-col items-center">
+                        <div class="relative w-16 h-16">
+                            <canvas id="memChart"></canvas>
+                            <div class="absolute inset-0 flex items-center justify-center">
+                                <span id="mem-val" class="text-[9px] font-bold text-purple-600">0%</span>
+                            </div>
+                        </div>
+                        <span class="text-[8px] font-black text-slate-400 mt-1 uppercase">内存使用</span>
                     </div>
                 </div>
-                <div id="log-container" class="space-y-2 max-h-32 overflow-y-auto custom-scrollbar"></div>
+            </div>
+
+            <div class="glass-card rounded-[2rem] p-4 shadow-lg h-40">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-blue-500"></i>
+                    <span class="text-[9px] font-black text-slate-500 uppercase">频率分析 (保证显示每一个用户)</span>
+                </div>
+                <div class="h-28 w-full"><canvas id="usageChart"></canvas></div>
+            </div>
+
+            <div class="glass-card rounded-[2rem] p-4 shadow-lg">
+                <div class="flex justify-between items-center mb-3">
+                    <span class="text-[9px] font-black text-slate-500 uppercase">实时日志</span>
+                    <div class="flex gap-3 text-[9px] font-bold">
+                        <button onclick="clearLogs()" class="text-red-400">清空</button>
+                        <button onclick="logout()" class="text-slate-400">退出</button>
+                    </div>
+                </div>
+                <div id="log-container" class="space-y-1.5 max-h-28 overflow-y-auto custom-scrollbar"></div>
             </div>
         </div>
     </div>
@@ -101,7 +122,7 @@
 
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
-        let client = null, myChart = null, deviceOnline = false, isCoolingDown = false;
+        let client = null, myChart = null, cpuDonut = null, memDonut = null, deviceOnline = false;
 
         window.onload = () => { lucide.createIcons(); checkAuth(); };
 
@@ -115,92 +136,71 @@
             if (user) {
                 document.getElementById('current-user').textContent = user.getUsername();
                 showView('dashboard-view');
+                initSystemCharts();
                 if(!client) initMqtt();
                 fetchLogs();
                 lucide.createIcons();
             } else { showView('login-view'); }
         }
 
-        async function changePassword() {
-            const { value: formValues } = await Swal.fire({
-                title: '修改密码',
-                html: '<input id="swal-input1" class="swal2-input" placeholder="原密码" type="password"><input id="swal-input2" class="swal2-input" placeholder="新密码" type="password">',
-                focusConfirm: false,
-                showCancelButton: true,
-                preConfirm: () => [document.getElementById('swal-input1').value, document.getElementById('swal-input2').value]
-            });
-            if (formValues) {
-                const [oldPw, newPw] = formValues;
-                if (!oldPw || !newPw) return Swal.fire('错误', '请填写完整', 'error');
-                try {
-                    await AV.User.current().updatePassword(oldPw, newPw);
-                    Swal.fire('成功', '密码已修改，请重新登录', 'success').then(() => logout());
-                } catch { Swal.fire('失败', '密码验证失败', 'error'); }
-            }
+        function initSystemCharts() {
+            const commonOptions = { cutout: '80%', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } } };
+            cpuDonut = new Chart(document.getElementById('cpuChart').getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [0, 100], backgroundColor: ['#3b82f6', '#f1f5f9'], borderWidth: 0 }] }, options: commonOptions });
+            memDonut = new Chart(document.getElementById('memChart').getContext('2d'), { type: 'doughnut', data: { datasets: [{ data: [0, 100], backgroundColor: ['#a855f7', '#f1f5f9'], borderWidth: 0 }] }, options: commonOptions });
         }
 
         function initMqtt() {
             client = mqtt.connect(MQTT_BROKER);
             client.on('connect', () => {
                 client.subscribe(MQTT_TOPIC_BASE + '/status');
-                client.publish(MQTT_TOPIC_BASE + '/control', '', { retain: true });
+                client.subscribe(MQTT_TOPIC_BASE + '/sensor');
             });
             client.on('message', (topic, message) => {
                 if (topic === MQTT_TOPIC_BASE + '/status') {
                     const status = message.toString();
-                    updateStatus(status === 'online', status === 'online' ? "设备在线" : "设备离线");
+                    updateStatus(status === 'online', status === 'online' ? "系统就绪" : "设备离线");
+                }
+                if (topic === MQTT_TOPIC_BASE + '/sensor') {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        updateSystemStats(data.cpu, data.mem);
+                    } catch (e) {}
                 }
             });
         }
 
+        function updateSystemStats(cpu, mem) {
+            if (cpuDonut && memDonut) {
+                cpuDonut.data.datasets[0].data = [cpu, 100 - cpu]; cpuDonut.update();
+                document.getElementById('cpu-val').innerText = `${cpu}%`;
+                memDonut.data.datasets[0].data = [mem, 100 - mem]; memDonut.update();
+                document.getElementById('mem-val').innerText = `${mem}%`;
+            }
+        }
+
         function updateStatus(isOnline, text) {
             deviceOnline = isOnline;
-            const dot = document.getElementById('status-dot'), msg = document.getElementById('status-msg'), btn = document.getElementById('open-btn');
-            const ring = document.getElementById('button-ring'), iconBg = document.getElementById('icon-bg');
-
+            const dot = document.getElementById('status-dot'), btn = document.getElementById('open-btn');
+            const ring = document.getElementById('button-ring');
             if (isOnline) {
                 dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-[10px] font-black text-green-600";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
-                if(!isCoolingDown) btn.disabled = false;
-                iconBg.className = "p-4 rounded-full bg-blue-50 text-blue-500";
-                ring.classList.add('active-glow', 'opacity-100');
+                btn.disabled = false; ring.classList.add('active-glow', 'opacity-100');
             } else {
                 dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
-                btn.disabled = true;
-                iconBg.className = "p-4 rounded-full bg-slate-50 text-slate-300";
-                ring.classList.remove('active-glow', 'opacity-100');
+                btn.disabled = true; ring.classList.remove('active-glow', 'opacity-100');
             }
-            msg.textContent = text;
         }
 
         async function openDoor() {
             if (!deviceOnline) return;
-
-            // 防抖节流逻辑
-            if (isCoolingDown) {
-                Swal.fire({ title: '请稍等一下再按', icon: 'warning', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
-                return;
-            }
-
-            isCoolingDown = true;
-            const btn = document.getElementById('open-btn');
-            btn.disabled = true; // 立即锁定按钮
-
-            client.publish(MQTT_TOPIC_BASE + '/control', 'open', { retain: false });
-            Swal.fire({ title: '指令已下达', icon: 'success', toast: true, position: 'top', showConfirmButton: false, timer: 1000 });
-
+            client.publish(MQTT_TOPIC_BASE + '/control', 'open');
             const log = new DoorLog();
             log.set('username', AV.User.current().getUsername());
             log.set('actionTime', new Date().toLocaleTimeString());
             await log.save();
             fetchLogs();
-
-            // 2秒后解除锁定
-            setTimeout(() => {
-                isCoolingDown = false;
-                if(deviceOnline) btn.disabled = false;
-            }, 2000);
         }
 
         async function fetchLogs() {
@@ -209,8 +209,8 @@
             const results = await q.find();
             document.getElementById('log-container').innerHTML = results.map(i => `
                 <div class="bg-white p-2 rounded-lg border border-slate-50 flex justify-between items-center">
-                    <span class="text-[10px] font-bold text-slate-600">${i.get('username')}</span>
-                    <span class="text-[9px] text-slate-300 font-mono">${i.get('actionTime')}</span>
+                    <span class="text-[9px] font-bold text-slate-600">${i.get('username')}</span>
+                    <span class="text-[8px] text-slate-300 font-mono">${i.get('actionTime')}</span>
                 </div>
             `).join('');
             updateChart(results);
@@ -229,9 +229,10 @@
                         label: '次数',
                         data: Object.values(counts),
                         backgroundColor: '#3b82f6',
-                        borderRadius: 10,
-                        barThickness: 8, // 保持细柱形图
-                        maxBarThickness: 10
+                        borderRadius: 4,
+                        barThickness: 15,
+                        maxBarThickness: 20,
+                        minBarLength: 5 // 【关键】确保次数少的用户也能在图表中看到明显的柱子
                     }]
                 },
                 options: {
@@ -239,24 +240,35 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 9 } } },
-                        x: { grid: { display: false }, ticks: { font: { size: 9 } } }
+                        y: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { size: 8 } },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: { font: { size: 8 }, autoSkip: false } // 【关键】不跳过任何用户名
+                        }
                     }
                 }
             });
         }
 
         async function clearLogs() {
-            const { value: code } = await Swal.fire({ title: '清空日志', text: '输入授权码', input: 'password', showCancelButton: true });
+            const { value: code } = await Swal.fire({ title: '确认清空?', text: '请输入管理员码', input: 'password', showCancelButton: true });
             if (code === SUPER_ADMIN_CODE) {
                 const logs = await new AV.Query('DoorLog').find();
                 await AV.Object.destroyAll(logs);
                 fetchLogs();
-                Swal.fire('清空成功', '', 'success');
             }
         }
 
-        document.getElementById('login-form').onsubmit = async (e) => { e.preventDefault(); try { await AV.User.logIn(document.getElementById('l-username').value, document.getElementById('l-password').value); checkAuth(); } catch { Swal.fire('错误','验证失败','error'); } };
+        async function changePassword() {
+            const { value: v } = await Swal.fire({ title: '修改密码', html: '<input id="pw1" class="swal2-input" placeholder="原密码" type="password"><input id="pw2" class="swal2-input" placeholder="新密码" type="password">', preConfirm: () => [document.getElementById('pw1').value, document.getElementById('pw2').value] });
+            if (v) try { await AV.User.current().updatePassword(v[0], v[1]); logout(); } catch { Swal.fire('错误', '验证失败', 'error'); }
+        }
+
+        document.getElementById('login-form').onsubmit = async (e) => { e.preventDefault(); try { await AV.User.logIn(document.getElementById('l-username').value, document.getElementById('l-password').value); checkAuth(); } catch { Swal.fire('错误','账号或密码错误','error'); } };
         document.getElementById('register-form').onsubmit = async (e) => { e.preventDefault(); if(document.getElementById('r-admin-code').value !== SUPER_ADMIN_CODE) return; const user = new AV.User(); user.setUsername(document.getElementById('r-username').value); user.setPassword(document.getElementById('r-password').value); await user.signUp(); showView('login-view'); };
         function logout() { AV.User.logOut(); location.reload(); }
     </script>
