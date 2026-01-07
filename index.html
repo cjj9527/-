@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>云端门禁 Pro Max - 系统监控版</title>
+    <title>云端门禁 Pro Max - 最终版</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.bootcdn.net/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -21,6 +21,9 @@
         @keyframes breath { 0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.2); } 50% { box-shadow: 0 0 35px rgba(59, 130, 246, 0.5); } }
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        /* 日期分割线样式 */
+        .date-divider { display: flex; align-items: center; justify-content: center; margin: 12px 0 8px 0; }
+        .date-badge { background: #eff6ff; color: #3b82f6; font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 99px; }
     </style>
 </head>
 <body class="min-h-screen flex items-center justify-center p-4">
@@ -32,7 +35,11 @@
                 <input type="text" id="l-username" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="账号">
                 <input type="password" id="l-password" required class="w-full px-5 py-3 border rounded-xl outline-none focus:border-blue-500" placeholder="密码">
                 <button type="submit" class="w-full py-3.5 bg-blue-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-all">登录系统</button>
-                <button type="button" onclick="showView('register-view')" class="w-full text-xs text-blue-500 font-bold mt-2">注册新账号</button>
+
+                <div class="flex justify-between mt-4 px-2">
+                    <button type="button" onclick="showChangePwd()" class="text-xs text-slate-400 font-bold hover:text-blue-600 transition-colors">修改密码</button>
+                    <button type="button" onclick="showView('register-view')" class="text-xs text-blue-500 font-bold">注册新账号</button>
+                </div>
             </form>
         </div>
 
@@ -52,9 +59,6 @@
                 <div class="flex justify-between items-center mb-4">
                     <div class="flex items-center gap-2">
                         <span id="current-user" class="font-bold text-slate-700">User</span>
-                        <button onclick="changePassword()" class="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                            <i data-lucide="settings-2" class="w-4 h-4"></i>
-                        </button>
                     </div>
                     <div id="status-dot" class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400">
                         <span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE
@@ -94,7 +98,7 @@
             <div class="glass-card rounded-[2rem] p-4 shadow-lg h-40">
                 <div class="flex items-center gap-2 mb-2">
                     <i data-lucide="bar-chart-2" class="w-3.5 h-3.5 text-blue-500"></i>
-                    <span class="text-[9px] font-black text-slate-500 uppercase">频率分析 (保证显示每一个用户)</span>
+                    <span class="text-[9px] font-black text-slate-500 uppercase">频率分析</span>
                 </div>
                 <div class="h-28 w-full"><canvas id="usageChart"></canvas></div>
             </div>
@@ -107,7 +111,7 @@
                         <button onclick="logout()" class="text-slate-400">退出</button>
                     </div>
                 </div>
-                <div id="log-container" class="space-y-1.5 max-h-28 overflow-y-auto custom-scrollbar"></div>
+                <div id="log-container" class="space-y-1.5 max-h-40 overflow-y-auto custom-scrollbar pr-1"></div>
             </div>
         </div>
     </div>
@@ -122,7 +126,8 @@
 
         AV.init({ appId: LC_ID, appKey: LC_KEY, serverURL: LC_SERVER });
         const DoorLog = AV.Object.extend('DoorLog');
-        let client = null, myChart = null, cpuDonut = null, memDonut = null, deviceOnline = false;
+        let client = null, myChart = null, cpuDonut = null, memDonut = null;
+        let deviceOnline = false, isCoolingDown = false; // 加入防抖状态
 
         window.onload = () => { lucide.createIcons(); checkAuth(); };
 
@@ -141,6 +146,46 @@
                 fetchLogs();
                 lucide.createIcons();
             } else { showView('login-view'); }
+        }
+
+        // --- 新增：登录界面修改密码逻辑 ---
+        async function showChangePwd() {
+            const { value: formValues } = await Swal.fire({
+                title: '修改密码',
+                html: `
+                    <input id="swal-user" class="swal2-input" placeholder="用户名" type="text">
+                    <input id="swal-old" class="swal2-input" placeholder="旧密码" type="password">
+                    <input id="swal-new" class="swal2-input" placeholder="新密码" type="password">
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: '确认修改',
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal-user').value,
+                        document.getElementById('swal-old').value,
+                        document.getElementById('swal-new').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [username, oldPw, newPw] = formValues;
+                if (!username || !oldPw || !newPw) return Swal.fire('错误', '请填写完整', 'error');
+
+                try {
+                    // 1. 先尝试登录验证旧密码
+                    const user = await AV.User.logIn(username, oldPw);
+                    // 2. 验证通过后更新密码
+                    await user.updatePassword(oldPw, newPw);
+                    // 3. 更新成功后登出，防止直接进入系统（或者你可以选择不登出）
+                    await AV.User.logOut();
+
+                    Swal.fire('成功', '密码修改成功，请使用新密码登录', 'success');
+                } catch (error) {
+                    Swal.fire('失败', '用户名或旧密码错误', 'error');
+                }
+            }
         }
 
         function initSystemCharts() {
@@ -185,7 +230,8 @@
             if (isOnline) {
                 dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-green-100 text-[10px] font-black text-green-600";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> ONLINE';
-                btn.disabled = false; ring.classList.add('active-glow', 'opacity-100');
+                if(!isCoolingDown) btn.disabled = false; // 只有在非冷却状态下才启用
+                ring.classList.add('active-glow', 'opacity-100');
             } else {
                 dot.className = "flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-[10px] font-black text-slate-400";
                 dot.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFFLINE';
@@ -195,24 +241,59 @@
 
         async function openDoor() {
             if (!deviceOnline) return;
+
+            // --- 防抖动逻辑 (2秒冷却) ---
+            if (isCoolingDown) {
+                Swal.fire({ title: '请稍等一下再按', icon: 'warning', toast: true, position: 'top', showConfirmButton: false, timer: 1500 });
+                return;
+            }
+            isCoolingDown = true;
+            document.getElementById('open-btn').disabled = true; // 视觉禁用
+
             client.publish(MQTT_TOPIC_BASE + '/control', 'open');
+
+            // 记录日志
             const log = new DoorLog();
             log.set('username', AV.User.current().getUsername());
-            log.set('actionTime', new Date().toLocaleTimeString());
+            log.set('actionTime', new Date().toLocaleTimeString()); // 兼容字段
             await log.save();
             fetchLogs();
+
+            // 2秒后恢复按钮
+            setTimeout(() => {
+                isCoolingDown = false;
+                if(deviceOnline) document.getElementById('open-btn').disabled = false;
+            }, 2000);
         }
 
         async function fetchLogs() {
             const q = new AV.Query('DoorLog');
-            q.descending('createdAt').limit(20);
+            q.descending('createdAt').limit(30);
             const results = await q.find();
-            document.getElementById('log-container').innerHTML = results.map(i => `
-                <div class="bg-white p-2 rounded-lg border border-slate-50 flex justify-between items-center">
-                    <span class="text-[9px] font-bold text-slate-600">${i.get('username')}</span>
-                    <span class="text-[8px] text-slate-300 font-mono">${i.get('actionTime')}</span>
-                </div>
-            `).join('');
+
+            let html = '';
+            let lastDateStr = '';
+
+            results.forEach(log => {
+                const dateObj = new Date(log.createdAt);
+                const dateStr = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日`;
+                const timeStr = dateObj.toLocaleTimeString('zh-CN', { hour12: false });
+                const user = log.get('username');
+
+                if (dateStr !== lastDateStr) {
+                    html += `<div class="date-divider"><span class="date-badge">${dateStr}</span></div>`;
+                    lastDateStr = dateStr;
+                }
+
+                html += `
+                    <div class="bg-white p-2 rounded-lg border border-slate-50 flex justify-between items-center mb-1">
+                        <span class="text-[10px] font-bold text-slate-600">${user}</span>
+                        <span class="text-[9px] text-slate-300 font-mono">${timeStr}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('log-container').innerHTML = html;
             updateChart(results);
         }
 
@@ -232,7 +313,7 @@
                         borderRadius: 4,
                         barThickness: 15,
                         maxBarThickness: 20,
-                        minBarLength: 5 // 【关键】确保次数少的用户也能在图表中看到明显的柱子
+                        minBarLength: 5
                     }]
                 },
                 options: {
@@ -240,15 +321,8 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: { stepSize: 1, font: { size: 8 } },
-                            grid: { color: '#f1f5f9' }
-                        },
-                        x: {
-                            grid: { display: false },
-                            ticks: { font: { size: 8 }, autoSkip: false } // 【关键】不跳过任何用户名
-                        }
+                        y: { beginAtZero: true, ticks: { stepSize: 1, font: { size: 8 } }, grid: { color: '#f1f5f9' } },
+                        x: { grid: { display: false }, ticks: { font: { size: 8 }, autoSkip: false } }
                     }
                 }
             });
@@ -261,11 +335,6 @@
                 await AV.Object.destroyAll(logs);
                 fetchLogs();
             }
-        }
-
-        async function changePassword() {
-            const { value: v } = await Swal.fire({ title: '修改密码', html: '<input id="pw1" class="swal2-input" placeholder="原密码" type="password"><input id="pw2" class="swal2-input" placeholder="新密码" type="password">', preConfirm: () => [document.getElementById('pw1').value, document.getElementById('pw2').value] });
-            if (v) try { await AV.User.current().updatePassword(v[0], v[1]); logout(); } catch { Swal.fire('错误', '验证失败', 'error'); }
         }
 
         document.getElementById('login-form').onsubmit = async (e) => { e.preventDefault(); try { await AV.User.logIn(document.getElementById('l-username').value, document.getElementById('l-password').value); checkAuth(); } catch { Swal.fire('错误','账号或密码错误','error'); } };
